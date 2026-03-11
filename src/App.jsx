@@ -403,7 +403,7 @@ function HalfSheet({ data, type }) {
 
 function PrintTemplate({ data }) {
   return (
-    <div style={{ width: "210mm", height: "297mm", background: "white", display: "flex", flexDirection: "column", fontFamily: "Arial, sans-serif" }}>
+    <div style={{ width: "210mm", height: "296mm", background: "white", display: "flex", flexDirection: "column", fontFamily: "Arial, sans-serif", overflow: "hidden" }}>
 
       {/* ── COURIER COPY (top half — paste on parcel) ── */}
       <div style={{ flex: 1, overflow: "hidden" }}>
@@ -473,7 +473,7 @@ function PrintOverlay({ printData, previewMode, onClose }) {
     const el = document.getElementById("doc-preview");
     const opt = previewMode === "envelope"
       ? { margin: 0, filename: `Envelope_${printData.recipient.name}.pdf`, image: { type: "jpeg", quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: "in", format: [9, 4.5], orientation: "landscape" } }
-      : { margin: 0, filename: `Dispatch_${printData.recipient.name}_${printData.dispatchInfo.date}.pdf`, image: { type: "jpeg", quality: 0.98 }, html2canvas: { scale: 2, scrollY: 0 }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
+      : { margin: 0, filename: `Dispatch_${printData.recipient.name}_${printData.dispatchInfo.date}.pdf`, image: { type: "jpeg", quality: 0.98 }, html2canvas: { scale: 2, scrollY: 0, useCORS: true }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["avoid-all"] } };
     showNotif("Generating PDF…");
     window.html2pdf().set(opt).from(el).save().then(() => showNotif("Downloaded!"));
   };
