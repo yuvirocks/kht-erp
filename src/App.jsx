@@ -13,6 +13,7 @@ const DEFAULT_COURIERS = [
   "Anjani", "Tirupati", "Blue Dart", "DHL", "FedEx"
 ];
 const DEFAULT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbymS4iJvn2urnKLIyaTw49Xmo0Ltjb0k5_Q1hbNJeLyrfjkcuFMgC04PmJEbx-NY-8B/exec";
+const DEFAULT_PRODUCTS_DRIVE_URL = "https://script.google.com/macros/s/AKfycbz4cSEAqiENHZhkBDOJUiRoaXvmV7h7WY5Rilb_-hIUSLn3Of-I2pTk60voDP63k8Nf/exec";
 const SENDER = {
   name: "Kshirsagar Hometextiles",
   website: "www.terrytowel.in",
@@ -65,171 +66,435 @@ const DOCS = [
 ];
 
 /* ═══════════════════════════════════════════════════════════════
-   GLOBAL STYLES
+   GLOBAL STYLES — v3 REDESIGN
 ═══════════════════════════════════════════════════════════════ */
 const GLOBAL_STYLE = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body, #root { font-family: 'DM Sans', sans-serif; background: #FDFAF4; height: 100vh; overflow: hidden; }
+body, #root {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: #F4F1EC;
+  height: 100vh; overflow: hidden;
+}
 
 :root {
-  --navy: #0D1B2A; --navy-l: #1A2E45; --navy-ll: #243B55;
-  --gold: #C9A84C; --gold-l: #E2C47A; --gold-p: #F7EDD0; --gold-pp: #FDFAF4;
-  --white: #FFFFFF; --cream: #FDFAF4;
-  --text-dark: #1A1A2E; --text-mid: #4A5568; --text-light: #8A9BB0;
-  --border: #E8EDF3; --border-l: #F0F4F8;
-  --green: #2D7A4F; --red: #C0392B; --blue: #1B6CA8;
+  --navy: #0D1B2A; --navy-l: #162436; --navy-ll: #1E3550;
+  --gold: #C4913A; --gold-l: #D9AA60; --gold-p: #F5ECD8; --gold-pp: #FAF6EF;
+  --white: #FFFFFF; --cream: #FAF8F3; --bg: #F4F1EC;
+  --text-dark: #0F1923; --text-mid: #4A5568; --text-light: #8A9BB0;
+  --border: #E3DDD4; --border-l: #EDE9E2;
+  --green: #2A7A52; --red: #B83535; --blue: #1A5FA0;
+  --shadow-sm: 0 1px 4px rgba(15,25,35,.06), 0 0 0 1px rgba(15,25,35,.04);
+  --shadow-md: 0 4px 16px rgba(15,25,35,.08), 0 0 0 1px rgba(15,25,35,.04);
+  --shadow-lg: 0 12px 40px rgba(15,25,35,.14);
+  --radius: 12px; --radius-sm: 8px;
 }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4CFC6; border-radius: 10px; }
 
 /* ── LAYOUT ── */
 .erp-shell { display: flex; height: 100vh; overflow: hidden; }
 
 /* ── SIDEBAR ── */
-.sb { width: 232px; min-width: 232px; background: var(--navy); display: flex; flex-direction: column; position: relative; overflow: hidden; flex-shrink: 0; }
-.sb::after { content:''; position:absolute; right:0; top:0; bottom:0; width:1px; background: linear-gradient(to bottom, transparent 0%, #C9A84C44 40%, #C9A84C66 60%, transparent 100%); }
-.sb-logo { padding: 22px 20px 18px; border-bottom: 1px solid var(--navy-l); }
-.sb-logo h1 { font-family:'Cormorant Garamond',serif; font-size:17px; font-weight:700; color:var(--gold); line-height:1.25; letter-spacing:.02em; }
-.sb-logo span { display:block; font-size:9px; font-weight:600; color:var(--text-light); letter-spacing:.15em; text-transform:uppercase; margin-top:4px; }
-.sb-nav { flex:1; padding:14px 10px; overflow-y:auto; }
-.sb-section { font-size:8px; font-weight:700; color:var(--text-light); letter-spacing:.18em; text-transform:uppercase; padding:12px 10px 5px; }
-.sb-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:7px; cursor:pointer; margin-bottom:1px; color:#7A8FA8; font-size:12.5px; font-weight:500; transition:all .15s ease; position:relative; user-select:none; }
-.sb-item:hover { background:var(--navy-l); color:#BDD0E5; }
-.sb-item.active { background:linear-gradient(135deg,#C9A84C22,#C9A84C10); color:var(--gold-l); border:1px solid #C9A84C2A; }
-.sb-item.active::before { content:''; position:absolute; left:0; top:22%; bottom:22%; width:3px; border-radius:0 2px 2px 0; background:var(--gold); }
-.sb-icon { font-size:15px; width:19px; text-align:center; flex-shrink:0; }
-.sb-foot { padding:14px 18px; border-top:1px solid var(--navy-l); }
-.sb-foot p { font-size:11px; color:var(--text-light); line-height:1.6; }
-.sb-foot strong { color:var(--gold); }
+.sb {
+  width: 240px; min-width: 240px; flex-shrink: 0;
+  background: var(--navy);
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+  box-shadow: 2px 0 20px rgba(0,0,0,.18);
+}
+.sb::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse 180% 60% at 20% 0%, #C4913A18 0%, transparent 60%),
+    radial-gradient(ellipse 100% 40% at 80% 100%, #1E335018 0%, transparent 60%);
+  pointer-events: none;
+}
+.sb-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  position: relative;
+}
+.sb-logo h1 {
+  font-family: 'Fraunces', serif;
+  font-size: 18px; font-weight: 600;
+  color: var(--gold-l); line-height: 1.25;
+  letter-spacing: .01em;
+}
+.sb-logo span {
+  display: block; font-size: 9px; font-weight: 600;
+  color: rgba(255,255,255,.3); letter-spacing: .2em;
+  text-transform: uppercase; margin-top: 5px;
+}
+.sb-logo::after {
+  content: '';
+  position: absolute; bottom: 0; left: 20px; right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C4913A55, transparent);
+}
+
+.sb-nav { flex: 1; padding: 16px 10px; overflow-y: auto; }
+.sb-section {
+  font-size: 8.5px; font-weight: 700;
+  color: rgba(255,255,255,.22);
+  letter-spacing: .2em; text-transform: uppercase;
+  padding: 14px 10px 6px;
+}
+.sb-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 9px;
+  cursor: pointer; margin-bottom: 2px;
+  color: rgba(255,255,255,.45);
+  font-size: 13px; font-weight: 500;
+  transition: all .18s ease; position: relative;
+  user-select: none; letter-spacing: .01em;
+}
+.sb-item:hover {
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.8);
+}
+.sb-item.active {
+  background: linear-gradient(135deg, rgba(196,145,58,.18), rgba(196,145,58,.08));
+  color: var(--gold-l);
+  border: 1px solid rgba(196,145,58,.2);
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute; left: 0; top: 25%; bottom: 25%;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: linear-gradient(to bottom, var(--gold), var(--gold-l));
+}
+.sb-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.sb-foot {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.sb-foot p { font-size: 11px; color: rgba(255,255,255,.25); line-height: 1.7; }
+.sb-foot strong { color: var(--gold); }
 
 /* ── MAIN ── */
-.main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
-.topbar { background:var(--white); border-bottom:1px solid var(--border); height:58px; padding:0 26px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
-.topbar-title { font-family:'Cormorant Garamond',serif; font-size:21px; font-weight:600; color:var(--text-dark); }
-.topbar-right { display:flex; align-items:center; gap:10px; }
-.topbar-pill { background:var(--gold-p); color:#8B6914; font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid #C9A84C44; letter-spacing:.05em; }
-.topbar-av { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--gold-l)); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--navy); }
-.content { flex:1; overflow-y:auto; padding:24px 26px; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.topbar {
+  background: rgba(250,248,243,.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  height: 62px; padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+}
+.topbar::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 70%, transparent 100%);
+}
+.topbar-title {
+  font-family: 'Fraunces', serif;
+  font-size: 22px; font-weight: 600;
+  color: var(--text-dark); letter-spacing: -.01em;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-pill {
+  background: var(--gold-p); color: #7A5C1E;
+  font-size: 10.5px; font-weight: 700;
+  padding: 4px 12px; border-radius: 20px;
+  border: 1px solid rgba(196,145,58,.3);
+  letter-spacing: .04em;
+}
+.topbar-av {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-l));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: var(--navy);
+  box-shadow: 0 2px 8px rgba(196,145,58,.4);
+}
+.content { flex: 1; overflow-y: auto; padding: 26px 28px; background: var(--bg); }
 
 /* ── CARDS ── */
-.card { background:var(--white); border-radius:11px; border:1px solid var(--border); padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
-.card-title { font-family:'Cormorant Garamond',serif; font-size:16px; font-weight:600; color:var(--text-dark); margin-bottom:3px; }
-.card-sub { font-size:11px; color:var(--text-light); margin-bottom:14px; }
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .2s;
+}
+.card:hover { box-shadow: var(--shadow-md); }
+.card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 16.5px; font-weight: 600;
+  color: var(--text-dark); margin-bottom: 3px;
+  letter-spacing: -.01em;
+}
+.card-sub { font-size: 11.5px; color: var(--text-light); margin-bottom: 16px; }
 
 /* ── STAT CARDS ── */
-.stat { background:var(--white); border-radius:11px; border:1px solid var(--border); padding:16px 18px; position:relative; overflow:hidden; }
-.stat::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; }
-.stat.gold::after { background:var(--gold); }
-.stat.blue::after { background:var(--blue); }
-.stat.green::after { background:var(--green); }
-.stat.red::after { background:var(--red); }
-.stat-n { font-family:'Cormorant Garamond',serif; font-size:30px; font-weight:700; color:var(--text-dark); line-height:1; }
-.stat-l { font-size:11.5px; color:var(--text-mid); font-weight:500; margin-top:4px; }
-.stat-s { font-size:10px; color:var(--text-light); margin-top:2px; }
+.stat {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+  position: relative; overflow: hidden;
+  transition: all .2s;
+  box-shadow: var(--shadow-sm);
+}
+.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.stat.gold::before { background: linear-gradient(90deg, var(--gold), var(--gold-l)); }
+.stat.blue::before { background: linear-gradient(90deg, #1A5FA0, #4B8FD4); }
+.stat.green::before { background: linear-gradient(90deg, #2A7A52, #4DB87A); }
+.stat.red::before { background: linear-gradient(90deg, #B83535, #E06060); }
+.stat-n {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 32px; font-weight: 700;
+  color: var(--text-dark); line-height: 1;
+  margin-top: 4px;
+}
+.stat-l { font-size: 12px; color: var(--text-mid); font-weight: 600; margin-top: 5px; }
+.stat-s { font-size: 10.5px; color: var(--text-light); margin-top: 2px; }
 
 /* ── GRIDS ── */
-.g2 { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
-.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
-.g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:13px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
 
 /* ── BUTTONS ── */
-.btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer; border:none; transition:all .15s; font-family:'DM Sans',sans-serif; white-space:nowrap; }
-.btn-gold { background:var(--gold); color:var(--navy); }
-.btn-gold:hover { background:var(--gold-l); }
-.btn-out { background:transparent; border:1.5px solid var(--border); color:var(--text-mid); }
-.btn-out:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-pp); }
-.btn-navy { background:var(--navy); color:var(--white); }
-.btn-navy:hover { background:var(--navy-l); }
-.btn-danger { background:#FEF2F2; color:var(--red); border:1px solid #FCA5A5; }
-.btn-success { background:#F0FDF4; color:var(--green); border:1px solid #86EFAC; }
-.btn-sm { padding:5px 11px; font-size:11.5px; }
-.btn-full { width:100%; justify-content:center; }
-.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: all .18s;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  white-space: nowrap; letter-spacing: .01em;
+}
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold), var(--gold-l));
+  color: var(--navy);
+  box-shadow: 0 2px 10px rgba(196,145,58,.35);
+}
+.btn-gold:hover {
+  background: linear-gradient(135deg, var(--gold-l), var(--gold));
+  box-shadow: 0 4px 16px rgba(196,145,58,.45);
+  transform: translateY(-1px);
+}
+.btn-out {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text-mid);
+}
+.btn-out:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-pp); }
+.btn-navy { background: var(--navy); color: var(--white); }
+.btn-navy:hover { background: var(--navy-ll); transform: translateY(-1px); }
+.btn-danger { background: #FEF2F2; color: var(--red); border: 1px solid #FCA5A5; }
+.btn-success { background: #F0FDF4; color: var(--green); border: 1px solid #86EFAC; }
+.btn-sm { padding: 5px 12px; font-size: 11.5px; }
+.btn-full { width: 100%; justify-content: center; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
 
 /* ── FORM ── */
-.inp, .sel, .ta { width:100%; padding:8px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:12.5px; font-family:'DM Sans',sans-serif; color:var(--text-dark); background:var(--white); outline:none; transition:border-color .15s; }
-.inp:focus,.sel:focus,.ta:focus { border-color:var(--gold); }
-.ta { resize:vertical; min-height:72px; }
-.lbl { display:block; font-size:10px; font-weight:700; color:var(--text-mid); letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px; }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:11px; }
-.form-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; margin-bottom:11px; }
+.inp, .sel, .ta {
+  width: 100%; padding: 9px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text-dark); background: var(--white);
+  outline: none; transition: all .18s;
+}
+.inp:focus, .sel:focus, .ta:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(196,145,58,.12);
+}
+.ta { resize: vertical; min-height: 76px; }
+.lbl {
+  display: block; font-size: 10.5px; font-weight: 700;
+  color: var(--text-mid); letter-spacing: .06em;
+  text-transform: uppercase; margin-bottom: 5px;
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 
 /* ── TABLE ── */
-.tbl { width:100%; border-collapse:collapse; }
-.tbl th { text-align:left; font-size:9.5px; font-weight:700; color:var(--text-light); letter-spacing:.12em; text-transform:uppercase; padding:7px 13px; border-bottom:1px solid var(--border); background:#FAFBFC; }
-.tbl td { padding:11px 13px; font-size:12.5px; color:var(--text-dark); border-bottom:1px solid var(--border); vertical-align:middle; }
-.tbl tr:last-child td { border-bottom:none; }
-.tbl tr:hover td { background:#FAFBFC; }
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th {
+  text-align: left; font-size: 10px; font-weight: 700;
+  color: var(--text-light); letter-spacing: .12em;
+  text-transform: uppercase; padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--cream);
+}
+.tbl td {
+  padding: 12px 14px; font-size: 13px;
+  color: var(--text-dark); border-bottom: 1px solid var(--border-l);
+  vertical-align: middle;
+}
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--gold-pp); }
 
 /* ── TAGS ── */
-.tag { display:inline-block; padding:2px 7px; border-radius:4px; font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
-.tag-gold { background:var(--gold-p); color:#8B6914; }
-.tag-blue { background:#EFF6FF; color:#1D4ED8; }
-.tag-green { background:#F0FDF4; color:#166534; }
-.tag-red { background:#FEF2F2; color:#991B1B; }
-.tag-gray { background:#F3F4F6; color:#374151; }
+.tag {
+  display: inline-block; padding: 3px 9px; border-radius: 5px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.tag-gold { background: var(--gold-p); color: #7A5C1E; }
+.tag-blue { background: #EFF6FF; color: #1D4ED8; }
+.tag-green { background: #F0FDF4; color: #166534; }
+.tag-red { background: #FEF2F2; color: #991B1B; }
+.tag-gray { background: #F3F4F6; color: #374151; }
 
 /* ── SECTION HEADER ── */
-.sh { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-.st { font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:600; color:var(--text-dark); }
+.sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.st {
+  font-family: 'Fraunces', serif;
+  font-size: 20px; font-weight: 600;
+  color: var(--text-dark); letter-spacing: -.01em;
+}
 
 /* ── DISPATCH SPECIFIC ── */
-.paste-area { border:2px dashed #C9A84C66; border-radius:10px; padding:16px; background:#F7EDD022; font-size:12.5px; color:var(--text-mid); font-family:'DM Sans',monospace; outline:none; resize:vertical; min-height:100px; transition:border-color .2s; width:100%; }
-.paste-area:focus { border-color:var(--gold); }
-.num-badge { width:22px; height:22px; border-radius:50%; background:#C9A84C22; color:var(--gold); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0; }
-.action-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; font-family:'DM Sans',sans-serif; transition:all .18s; }
+.paste-area {
+  border: 2px dashed rgba(196,145,58,.4);
+  border-radius: 10px; padding: 16px;
+  background: rgba(196,145,58,.04);
+  font-size: 13px; color: var(--text-mid);
+  font-family: 'Plus Jakarta Sans', monospace;
+  outline: none; resize: vertical; min-height: 100px;
+  transition: border-color .2s; width: 100%;
+}
+.paste-area:focus { border-color: var(--gold); }
+.num-badge {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(196,145,58,.15); color: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; flex-shrink: 0;
+}
+.action-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 12px 16px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif; transition: all .18s;
+}
 
 /* ── PRINT PREVIEW OVERLAY ── */
-.print-overlay { position:fixed; inset:0; background:#111827; z-index:9999; display:flex; flex-direction:column; }
-.print-topbar { background:var(--white); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); flex-shrink:0; }
-.print-canvas { flex:1; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:32px 24px; gap:24px; }
+.print-overlay { position: fixed; inset: 0; background: #111827; z-index: 9999; display: flex; flex-direction: column; }
+.print-topbar {
+  background: var(--white); padding: 14px 26px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.print-canvas {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 36px 24px; gap: 24px;
+}
 
 /* ── NOTIFICATION ── */
-.notif { position:fixed; top:18px; right:18px; background:var(--navy); color:var(--white); padding:10px 18px; border-radius:8px; font-size:13px; font-weight:500; z-index:99999; border:1px solid var(--gold)44; box-shadow:0 4px 20px rgba(0,0,0,.25); animation:slideIn .2s ease; }
-@keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.notif {
+  position: fixed; top: 20px; right: 20px;
+  background: var(--navy); color: var(--white);
+  padding: 11px 20px; border-radius: 10px;
+  font-size: 13px; font-weight: 500; z-index: 99999;
+  border: 1px solid rgba(196,145,58,.3);
+  box-shadow: var(--shadow-lg);
+  animation: slideIn .22s ease;
+}
+@keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.spin { animation: spin 1s linear infinite; }
 
 /* ── CONTACTS / CRM ── */
-.avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--gold-l)); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:var(--navy); flex-shrink:0; }
-.cust-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; transition:background .15s; }
-.cust-row:hover { background:#F9FAFB; }
-.cust-row.sel { background:var(--gold-pp); border:1px solid #C9A84C33; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-l));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: var(--navy); flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(196,145,58,.3);
+}
+.cust-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 13px; border-radius: 9px;
+  cursor: pointer; transition: all .15s;
+}
+.cust-row:hover { background: var(--gold-pp); }
+.cust-row.sel { background: var(--gold-p); border: 1px solid rgba(196,145,58,.25); }
 
 /* ── PRODUCTS ── */
-.prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(152px,1fr)); gap:13px; }
-.prod-card { border:1.5px solid var(--border); border-radius:9px; overflow:hidden; background:var(--white); cursor:pointer; transition:all .18s; }
-.prod-card:hover { border-color:var(--gold); transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.07); }
-.prod-img { width:100%; height:110px; background:linear-gradient(135deg,#f0e8d5,#e8d5b0); display:flex; align-items:center; justify-content:center; font-size:32px; }
-.prod-info { padding:9px 11px; }
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(155px,1fr)); gap: 14px; }
+.prod-card {
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; background: var(--white);
+  cursor: pointer; transition: all .2s;
+}
+.prod-card:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.prod-img {
+  width: 100%; height: 112px;
+  background: linear-gradient(135deg, #f0e8d5, #e6d4a8);
+  display: flex; align-items: center; justify-content: center; font-size: 34px;
+}
+.prod-info { padding: 10px 12px; }
 
 /* ── DOCUMENTS SPLIT ── */
-.doc-split { display:flex; border:1px solid var(--border); border-radius:11px; overflow:hidden; height:calc(100vh - 150px); background:var(--white); }
-.doc-left { width:268px; min-width:268px; border-right:1px solid var(--border); overflow-y:auto; padding:10px; background:#FAFBFC; }
-.doc-right { flex:1; padding:20px; overflow-y:auto; }
-.doc-item { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:7px; cursor:pointer; margin-bottom:1px; transition:background .15s; }
-.doc-item:hover { background:var(--gold-pp); }
-.doc-item.sel { background:var(--gold-p); border:1px solid #C9A84C44; }
-.doc-cat-h { font-size:8.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--text-light); padding:10px 11px 4px; }
+.doc-split {
+  display: flex; border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; height: calc(100vh - 150px); background: var(--white);
+}
+.doc-left { width: 272px; min-width: 272px; border-right: 1px solid var(--border); overflow-y: auto; padding: 10px; background: var(--cream); }
+.doc-right { flex: 1; padding: 22px; overflow-y: auto; }
+.doc-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  cursor: pointer; margin-bottom: 1px; transition: all .15s;
+}
+.doc-item:hover { background: var(--gold-pp); }
+.doc-item.sel { background: var(--gold-p); border: 1px solid rgba(196,145,58,.3); }
+.doc-cat-h { font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--text-light); padding: 12px 12px 5px; }
 
 /* ── AI ── */
-.ai-box { background:linear-gradient(135deg,#FDFAF4,#F7EDD0); border:1.5px solid #C9A84C55; border-radius:9px; padding:14px; font-size:12.5px; line-height:1.75; color:var(--text-dark); white-space:pre-wrap; min-height:110px; }
-.dots { display:inline-flex; gap:3px; }
-.dots span { width:5px; height:5px; border-radius:50%; background:var(--gold); animation:pulse 1.2s infinite; }
+.ai-box {
+  background: linear-gradient(135deg, var(--cream), var(--gold-p));
+  border: 1.5px solid rgba(196,145,58,.3);
+  border-radius: 10px; padding: 16px;
+  font-size: 13px; line-height: 1.8;
+  color: var(--text-dark); white-space: pre-wrap; min-height: 110px;
+}
+.dots { display: inline-flex; gap: 4px; }
+.dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s infinite; }
 .dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
 @keyframes pulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
 
 /* ── WA BUTTON ── */
-.wa-btn { display:inline-flex; align-items:center; gap:7px; background:#25D366; color:white; border:none; padding:8px 16px; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer; transition:background .2s; font-family:'DM Sans',sans-serif; }
-.wa-btn:hover { background:#1EBE58; }
+.wa-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #25D366; color: white; border: none;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all .2s; font-family: 'Plus Jakarta Sans', sans-serif;
+  box-shadow: 0 2px 10px rgba(37,211,102,.3);
+}
+.wa-btn:hover { background: #1EBE58; transform: translateY(-1px); }
 
 /* ── UTILITY ── */
-.divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
-.upload-z { border:2px dashed var(--border); border-radius:10px; padding:28px; text-align:center; cursor:pointer; transition:all .2s; }
-.upload-z:hover { border-color:var(--gold); background:var(--gold-pp); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.upload-z {
+  border: 2px dashed var(--border); border-radius: 10px;
+  padding: 30px; text-align: center; cursor: pointer; transition: all .2s;
+}
+.upload-z:hover { border-color: var(--gold); background: var(--gold-pp); }
 .mt2{margin-top:8px} .mt3{margin-top:12px} .mt4{margin-top:16px}
 .mb2{margin-bottom:8px} .mb3{margin-bottom:12px} .mb4{margin-bottom:16px}
 .flex{display:flex} .items-c{align-items:center} .justify-b{justify-content:space-between}
 .gap2{gap:8px} .gap3{gap:12px} .gap4{gap:16px} .w100{width:100%} .fw6{font-weight:600}
-.text-sm{font-size:12px} .text-xs{font-size:10.5px} .text-gold{color:var(--gold)} .text-lt{color:var(--text-light)}
+.text-sm{font-size:12.5px} .text-xs{font-size:11px} .text-gold{color:var(--gold)} .text-lt{color:var(--text-light)}
 .sticky-top{position:sticky;top:0;z-index:10}
 
 /* ── PRINT ── */
@@ -482,7 +747,7 @@ function PrintOverlay({ printData, previewMode, onClose }) {
     <div className="print-overlay">
       {notif && <div className="notif">{notif}</div>}
       <div className="print-topbar">
-        <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 20, fontWeight: 600, color: "#1A1A2E", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: "#1A1A2E", display: "flex", alignItems: "center", gap: 10 }}>
           <Printer size={20} color="#C9A84C" />
           {previewMode === "envelope" ? "Envelope Preview" : "Dispatch Label Preview"}
         </div>
@@ -701,7 +966,7 @@ function DispatchModule({ showNotif }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="card" style={{ width: 420, padding: 24 }}>
             <div className="flex justify-b items-c mb4">
-              <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 18, fontWeight: 600 }}>⚙️ Settings</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>⚙️ Settings</div>
               <button className="btn btn-out btn-sm" onClick={() => setShowSettings(false)}><X size={14} /></button>
             </div>
             <label className="lbl">Google Sheet Webhook URL</label>
@@ -733,7 +998,7 @@ function DispatchModule({ showNotif }) {
             <div className="card">
               <div className="flex gap2 items-c mb3">
                 <div className="num-badge">1</div>
-                <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 15, fontWeight: 600 }}>Party Details</div>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>Party Details</div>
               </div>
               <div className="form-row">
                 <div><label className="lbl">Contact Name *</label><input className="inp" placeholder="Full Name" value={recipient.name} onChange={e => setRecipient({ ...recipient, name: e.target.value })} /></div>
@@ -755,7 +1020,7 @@ function DispatchModule({ showNotif }) {
               <div className="flex justify-b items-c mb3">
                 <div className="flex gap2 items-c">
                   <div className="num-badge">2</div>
-                  <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 15, fontWeight: 600 }}>Sample Items</div>
+                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>Sample Items</div>
                 </div>
                 <div className="flex gap2">
                   <button className="btn btn-out btn-sm" onClick={() => setIsAddingType(!isAddingType)}><Settings size={12} /> Manage</button>
@@ -796,7 +1061,7 @@ function DispatchModule({ showNotif }) {
             <div className="card">
               <div className="flex gap2 items-c mb3">
                 <div className="num-badge">3</div>
-                <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 15, fontWeight: 600 }}>Dispatch Info</div>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>Dispatch Info</div>
               </div>
               <div className="form-row">
                 <div><label className="lbl">Dispatch Date</label><input className="inp" type="date" value={dispatchInfo.date} onChange={e => setDispatchInfo({ ...dispatchInfo, date: e.target.value })} /></div>
@@ -826,7 +1091,7 @@ function DispatchModule({ showNotif }) {
           {/* RIGHT - Actions */}
           <div>
             <div className="card sticky-top" style={{ top: 0 }}>
-              <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Actions</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Actions</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <button
                   onClick={async () => { await handlePrintForm(); }}
@@ -873,7 +1138,7 @@ function DispatchModule({ showNotif }) {
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", background: "#FAFBFC", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="flex gap3 items-c">
-              <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 17, fontWeight: 600 }}>Dispatch Log</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 600 }}>Dispatch Log</div>
               <span className="tag tag-gray">Google Sheet</span>
               <button className="btn btn-out btn-sm" onClick={fetchSheetHistory}>
                 <RefreshCw size={13} style={{ animation: isLoadingHistory ? "spin 1s linear infinite" : "none" }} /> Sync
@@ -916,7 +1181,7 @@ function DispatchModule({ showNotif }) {
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", background: "#FAFBFC", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="flex gap3 items-c">
-              <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 17, fontWeight: 600 }}>All Contacts</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 600 }}>All Contacts</div>
               <button className="btn btn-out btn-sm" onClick={fetchSheetHistory}>
                 <RefreshCw size={13} style={{ animation: isLoadingHistory ? "spin 1s linear infinite" : "none" }} /> Refresh
               </button>
@@ -1040,55 +1305,310 @@ function HomeModule({ setActive }) {
 }
 
 function ProductsModule() {
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
-  const cats = ["All", ...new Set(PRODUCTS_DATA.map(p => p.cat))];
-  const filtered = PRODUCTS_DATA.filter(p => (filter === "All" || p.cat === filter) && p.name.toLowerCase().includes(search.toLowerCase()));
+  const [uploading, setUploading] = useState(false);
+  const [uploadCat, setUploadCat] = useState("");
+  const [driveUrl, setDriveUrl] = useState(() => localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL);
+  const [showSetup, setShowSetup] = useState(false);
+  const [tempUrl, setTempUrl] = useState(driveUrl);
+  const [shareToast, setShareToast] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
+  const fileRef = useRef();
+
+  const DEFAULT_CATS = [
+    "Bath Towels", "Hand Towels", "Face Towels", "Bath Mats",
+    "Sports Towels", "Kitchen Towels", "Pool Towels", "Bath Robes", "Fabric Swatches"
+  ];
+
+  const fetchImages = async () => {
+    if (!driveUrl) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${driveUrl}?action=list&t=${Date.now()}`);
+      const data = await res.json();
+      if (data.ok) setImages(data.images || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchImages(); }, [driveUrl]);
+
+  // Auto-refresh every 30 seconds to pick up files added directly to Drive
+  useEffect(() => {
+    if (!driveUrl) return;
+    const t = setInterval(fetchImages, 30000);
+    return () => clearInterval(t);
+  }, [driveUrl]);
+
+  const cats = ["All", ...Array.from(new Set(images.map(i => i.cat))).sort()];
+  const filtered = images.filter(img =>
+    (filter === "All" || img.cat === filter) &&
+    img.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !driveUrl) return;
+    const cat = uploadCat || DEFAULT_CATS[0];
+    setUploading(true);
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const resp = await fetch(driveUrl, {
+        method: "POST",
+        body: JSON.stringify({ base64, mimeType: file.type, filename: file.name, category: cat })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setImages(prev => [data, ...prev]);
+        setSelected(data);
+      }
+    } catch (e) { alert("Upload failed. Check your script URL."); }
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  const share = (img) => {
+    if (navigator.share) {
+      navigator.share({ title: img.name, text: `Product photo from Kshirsagar Hometextiles`, url: img.shareUrl });
+    } else {
+      navigator.clipboard.writeText(img.shareUrl);
+      setShareToast("Link copied!");
+      setTimeout(() => setShareToast(null), 2500);
+    }
+  };
+
+  const shareOptions = (img) => [
+    { label: "📋 Copy Link", action: () => { navigator.clipboard.writeText(img.shareUrl); setShareToast("Link copied!"); setTimeout(() => setShareToast(null), 2500); } },
+    { label: "💬 WhatsApp", action: () => window.open(`https://wa.me/?text=${encodeURIComponent(img.name + " — " + img.shareUrl)}`, "_blank") },
+    { label: "✉️ Email", action: () => window.open(`mailto:?subject=${encodeURIComponent(img.name)}&body=${encodeURIComponent("Please find the product image here:\n" + img.shareUrl)}`, "_blank") },
+    { label: "⬇️ Download", action: () => window.open(`https://drive.google.com/uc?export=download&id=${img.id}`, "_blank") },
+    { label: "🔗 Open in Drive", action: () => window.open(img.shareUrl, "_blank") },
+  ];
+
+  const saveUrl = () => {
+    localStorage.setItem("kht_products_drive", tempUrl);
+    setDriveUrl(tempUrl);
+    setShowSetup(false);
+  };
+
   return (
     <div>
-      <div className="sh"><div className="st">📦 Products Database</div><button className="btn btn-gold btn-sm">+ Add Product</button></div>
-      <div className="flex gap3 mb4 items-c" style={{ flexWrap: "wrap" }}>
-        <input className="inp" style={{ maxWidth: 220 }} placeholder="🔍 Search…" value={search} onChange={e => setSearch(e.target.value)} />
-        {cats.map(c => <button key={c} className={`btn btn-sm ${filter === c ? "btn-gold" : "btn-out"}`} onClick={() => setFilter(c)}>{c}</button>)}
+      {shareToast && <div className="notif">{shareToast}</div>}
+
+      {/* HEADER */}
+      <div className="sh">
+        <div>
+          <div className="st">📦 Products Database</div>
+          <div className="text-sm text-lt mt2" style={{ marginTop: 2 }}>
+            {driveUrl ? `${images.length} photos across ${cats.length - 1} categories · synced from Google Drive` : "Connect Google Drive to get started"}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {driveUrl && (
+            <>
+              <button className="btn btn-out btn-sm" onClick={fetchImages} disabled={loading}>
+                <RefreshCw size={13} className={loading ? "spin" : ""} /> {loading ? "Syncing…" : "Sync Now"}
+              </button>
+              <button
+                className="btn btn-gold btn-sm"
+                onClick={() => { setUploadCat(filter !== "All" ? filter : DEFAULT_CATS[0]); fileRef.current?.click(); }}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading…" : "📸 Upload Photo"}
+              </button>
+            </>
+          )}
+          <button className="btn btn-out btn-sm" onClick={() => { setTempUrl(driveUrl); setShowSetup(true); }}>
+            <Settings size={13} /> {driveUrl ? "Drive Settings" : "⚠️ Connect Drive"}
+          </button>
+        </div>
       </div>
-      <div className="flex gap4" style={{ alignItems: "flex-start" }}>
-        <div style={{ flex: 1 }}>
-          <div className="prod-grid">
-            {filtered.map(p => (
-              <div key={p.id} className="prod-card" onClick={() => setSelected(p)} style={{ border: selected?.id === p.id ? "2px solid var(--gold)" : undefined }}>
-                <div className="prod-img">{p.emoji}</div>
-                <div className="prod-info">
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
-                  <div className="text-xs text-lt">{p.cat}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--gold)", marginTop: 3 }}>{p.price}</div>
+
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleUpload} />
+
+      {/* NOT CONNECTED STATE */}
+      {!driveUrl && (
+        <div className="card" style={{ textAlign: "center", padding: "48px 32px" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Connect Google Drive</div>
+          <div className="text-sm text-lt" style={{ maxWidth: 420, margin: "0 auto 20px" }}>
+            Deploy the Products Drive Apps Script, then paste the URL here. Your Drive folders will become your product categories — photos added there appear here automatically.
+          </div>
+          <button className="btn btn-gold" onClick={() => setShowSetup(true)}>Connect Now →</button>
+        </div>
+      )}
+
+      {/* FILTERS */}
+      {driveUrl && (
+        <div className="flex gap3 mb4 items-c" style={{ flexWrap: "wrap" }}>
+          <input className="inp" style={{ maxWidth: 220 }} placeholder="🔍 Search products…" value={search} onChange={e => setSearch(e.target.value)} />
+          {cats.map(c => (
+            <button key={c} className={`btn btn-sm ${filter === c ? "btn-gold" : "btn-out"}`} onClick={() => setFilter(c)}>{c}</button>
+          ))}
+        </div>
+      )}
+
+      {/* UPLOAD CATEGORY SELECTOR */}
+      {driveUrl && (
+        <div className="flex items-c gap3 mb3" style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px" }}>
+          <span className="text-xs text-lt" style={{ textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 700 }}>Upload to:</span>
+          <select className="sel" style={{ maxWidth: 200, padding: "5px 10px" }} value={uploadCat || DEFAULT_CATS[0]} onChange={e => setUploadCat(e.target.value)}>
+            {[...DEFAULT_CATS, ...cats.filter(c => c !== "All" && !DEFAULT_CATS.includes(c))].map(c => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <span className="text-xs text-lt">Creates the folder in Drive automatically if it doesn't exist.</span>
+        </div>
+      )}
+
+      {/* MAIN GRID + SIDEBAR */}
+      {driveUrl && (
+        <div className="flex gap4" style={{ alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            {loading && images.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-light)" }}>
+                <div className="dots" style={{ justifyContent: "center", marginBottom: 12 }}>
+                  <span /><span /><span />
+                </div>
+                <div className="text-sm">Loading from Google Drive…</div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-light)" }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>📂</div>
+                <div className="text-sm">No images found. Upload a photo or add images directly to your Drive folder.</div>
+              </div>
+            ) : (
+              <div className="prod-grid">
+                {filtered.map(img => (
+                  <div
+                    key={img.id}
+                    className="prod-card"
+                    onClick={() => setSelected(img)}
+                    style={{ border: selected?.id === img.id ? "2px solid var(--gold)" : undefined, position: "relative" }}
+                  >
+                    <div className="prod-img" style={{ background: "#f0ebe2", position: "relative", overflow: "hidden" }}>
+                      {imageErrors[img.id] ? (
+                        <div style={{ fontSize: 32 }}>🖼️</div>
+                      ) : (
+                        <img
+                          src={img.thumb || img.url}
+                          alt={img.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                          onError={() => setImageErrors(prev => ({ ...prev, [img.id]: true }))}
+                        />
+                      )}
+                    </div>
+                    <div className="prod-info">
+                      <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
+                      <div className="text-xs text-lt">{img.cat}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 2 }}>{img.date}</div>
+                    </div>
+                  </div>
+                ))}
+                {/* Upload tile */}
+                <div
+                  className="upload-z prod-card"
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 175, cursor: uploading ? "not-allowed" : "pointer" }}
+                  onClick={() => !uploading && fileRef.current?.click()}
+                >
+                  <div style={{ fontSize: 30 }}>{uploading ? "⏳" : "📸"}</div>
+                  <div className="text-xs text-lt mt2">{uploading ? "Uploading…" : "Upload Photo"}</div>
+                  {!uploading && <div style={{ fontSize: 9, color: "var(--text-light)", marginTop: 4 }}>Saves to Drive folder</div>}
                 </div>
               </div>
-            ))}
-            <div className="upload-z" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 160, borderRadius: 9 }}>
-              <div style={{ fontSize: 28 }}>📸</div>
-              <div className="text-xs text-lt mt2">Upload Image</div>
+            )}
+          </div>
+
+          {/* DETAIL SIDEBAR */}
+          {selected && (
+            <div className="card" style={{ width: 280, flexShrink: 0, position: "sticky", top: 0 }}>
+              <div style={{ width: "100%", height: 180, borderRadius: 8, overflow: "hidden", marginBottom: 14, background: "#f0ebe2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {imageErrors[selected.id] ? (
+                  <div style={{ fontSize: 48 }}>🖼️</div>
+                ) : (
+                  <img
+                    src={selected.url}
+                    alt={selected.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={() => setImageErrors(prev => ({ ...prev, [selected.id]: true }))}
+                  />
+                )}
+              </div>
+
+              <div className="card-title" style={{ marginBottom: 2 }}>{selected.name}</div>
+              <div className="tag tag-gold" style={{ marginBottom: 12 }}>{selected.cat}</div>
+              <div className="divider" />
+
+              {[["Date Added", selected.date || "—"], ["Folder", selected.cat], ["File", selected.filename || "—"]].map(([l, v]) => (
+                <div key={l} className="flex justify-b mb2">
+                  <span className="text-xs text-lt" style={{ textTransform: "uppercase", letterSpacing: ".06em" }}>{l}</span>
+                  <span className="text-sm fw6" style={{ textAlign: "right", maxWidth: "60%" }}>{v}</span>
+                </div>
+              ))}
+              <div className="divider" />
+
+              {/* SHARE OPTIONS */}
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Share This Image</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {shareOptions(selected).map(opt => (
+                  <button key={opt.label} className="btn btn-out btn-full btn-sm" style={{ justifyContent: "flex-start", fontSize: 12 }} onClick={opt.action}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="divider" />
+              <button className="btn btn-out btn-full btn-sm" onClick={() => setSelected(null)} style={{ color: "var(--text-light)" }}>
+                ✕ Close
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SETUP MODAL */}
+      {showSetup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="card" style={{ width: 520, maxWidth: "90vw", boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>🔗 Connect Google Drive</div>
+              <button className="btn btn-out btn-sm" onClick={() => setShowSetup(false)}><X size={14} /></button>
+            </div>
+
+            <div className="card" style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", marginBottom: 16, padding: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Setup Instructions:</div>
+              <div style={{ fontSize: 12, lineHeight: 1.8, color: "var(--text-mid)" }}>
+                1. Go to <strong>script.google.com</strong> → New Project<br />
+                2. Paste the <strong>ProductsDrive_AppScript.js</strong> code<br />
+                3. Click <strong>Deploy → New Deployment → Web App</strong><br />
+                4. Set <em>Execute as: Me</em> · <em>Access: Anyone</em><br />
+                5. Copy the deployment URL and paste it below<br />
+                6. A folder <strong>"KHT Products Database"</strong> will auto-create in your Drive
+              </div>
+            </div>
+
+            <label className="lbl">Google Apps Script Deployment URL</label>
+            <input
+              className="inp" style={{ marginBottom: 14 }}
+              placeholder="https://script.google.com/macros/s/…/exec"
+              value={tempUrl}
+              onChange={e => setTempUrl(e.target.value)}
+            />
+            <div className="flex gap3">
+              <button className="btn btn-gold btn-full" onClick={saveUrl} disabled={!tempUrl}>Save & Connect</button>
+              <button className="btn btn-out" onClick={() => setShowSetup(false)}>Cancel</button>
             </div>
           </div>
         </div>
-        {selected && (
-          <div className="card" style={{ width: 272, flexShrink: 0 }}>
-            <div style={{ fontSize: 52, textAlign: "center", marginBottom: 10 }}>{selected.emoji}</div>
-            <div className="card-title">{selected.name}</div>
-            <div className="card-sub">{selected.cat}</div>
-            <div className="divider" />
-            {[["GSM", selected.gsm + " GSM"], ["Size", selected.sizes], ["Trade Price", selected.price], ["SKU", `KHT-${String(selected.id).padStart(3, "0")}`]].map(([l, v]) => (
-              <div key={l} className="flex justify-b mb2"><span className="text-xs text-lt" style={{ textTransform: "uppercase", letterSpacing: ".06em" }}>{l}</span><span className="text-sm fw6">{v}</span></div>
-            ))}
-            <div className="divider" />
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <button className="btn btn-gold btn-full">✏️ Edit</button>
-              <button className="btn btn-out btn-full">📤 Share</button>
-              <button className="btn btn-danger btn-full">🗑️ Delete</button>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -1122,7 +1642,7 @@ function CRMModule() {
       <div className="sh"><div className="st">👥 CRM & Sales</div><button className="btn btn-gold btn-sm">+ Add Customer</button></div>
       <div className="flex gap4" style={{ alignItems: "flex-start" }}>
         <div className="card" style={{ width: 252, flexShrink: 0 }}>
-          <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Customers ({CUSTOMERS.length})</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Customers ({CUSTOMERS.length})</div>
           <input className="inp mb3" placeholder="🔍 Search…" />
           {CUSTOMERS.map(c => (
             <div key={c.id} className={`cust-row${sel?.id === c.id ? " sel" : ""}`} onClick={() => setSel(c)}>
@@ -1141,7 +1661,7 @@ function CRMModule() {
               <div className="flex gap3 items-c mb3">
                 <div className="avatar" style={{ width: 46, height: 46, fontSize: 16 }}>{sel.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 17, fontWeight: 700 }}>{sel.name}</div>
+                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 700 }}>{sel.name}</div>
                   <div className="text-xs text-lt">{sel.biz} · {sel.city}</div>
                 </div>
                 <StatusTag s={sel.status} />
@@ -1291,7 +1811,7 @@ function DocumentsModule() {
           {sel ? <>
             <div className="flex justify-b items-c mb4">
               <div>
-                <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 18, fontWeight: 700 }}>{sel.name}</div>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700 }}>{sel.name}</div>
                 <div className="flex gap2 mt2 items-c">
                   <span className={`tag ${sel.preview === "pdf" ? "tag-red" : sel.preview === "excel" ? "tag-green" : "tag-blue"}`}>{sel.preview.toUpperCase()}</span>
                   <span className="text-xs text-lt">{sel.size} · {sel.date} · {sel.cat}</span>
@@ -1310,7 +1830,7 @@ function DocumentsModule() {
               <button className="btn btn-gold mt2">👁️ Open Preview</button>
             </div>
             <div className="card mt4">
-              <div style={{ fontSize: 14, fontFamily: "Cormorant Garamond, serif", fontWeight: 600, marginBottom: 10 }}>Quick Share</div>
+              <div style={{ fontSize: 14, fontFamily: "'Fraunces', serif", fontWeight: 600, marginBottom: 10 }}>Quick Share</div>
               <div className="flex gap2">
                 {["📧 Email", "💬 WhatsApp", "📋 Copy Link", "🖨️ Print"].map(a => <button key={a} className="btn btn-out btn-sm">{a}</button>)}
               </div>
@@ -1350,20 +1870,20 @@ function LoginScreen({ onLogin }) {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
-        body{font-family:'DM Sans',sans-serif;}
+        body{font-family:'Plus Jakarta Sans',sans-serif;}
         .lw{min-height:100vh;background:#0D1B2A;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
         .lw::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,#1A2E4522 0%,transparent 60%),radial-gradient(ellipse at 70% 20%,#C9A84C11 0%,transparent 50%);}
         .lb{background:#fff;border-radius:16px;padding:48px 44px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.5);position:relative;z-index:1;border-top:3px solid #C9A84C;}
-        .ll h1{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:#0D1B2A;line-height:1.2;text-align:center;}
+        .ll h1{font-family:'Fraunces',serif;font-size:26px;font-weight:700;color:#0D1B2A;line-height:1.2;text-align:center;}
         .ll span{display:block;font-size:10px;font-weight:600;color:#8A9BB0;letter-spacing:.18em;text-transform:uppercase;margin-top:6px;text-align:center;}
         .ld{width:40px;height:2px;background:#C9A84C;margin:12px auto 28px;border-radius:2px;}
         .llbl{display:block;font-size:11px;font-weight:700;color:#4A5568;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;}
-        .linp{width:100%;padding:12px 14px;border:1.5px solid #E8EDF3;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:#1A1A2E;outline:none;transition:border-color .15s;letter-spacing:.08em;}
+        .linp{width:100%;padding:12px 14px;border:1.5px solid #E8EDF3;border-radius:8px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#1A1A2E;outline:none;transition:border-color .15s;letter-spacing:.08em;}
         .linp:focus{border-color:#C9A84C;}
         .linp.err{border-color:#C0392B;background:#FEF2F2;}
-        .lbtn{width:100%;padding:13px;background:#C9A84C;color:#0D1B2A;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:20px;font-family:'DM Sans',sans-serif;letter-spacing:.04em;transition:background .15s;}
+        .lbtn{width:100%;padding:13px;background:#C9A84C;color:#0D1B2A;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:20px;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:.04em;transition:background .15s;}
         .lbtn:hover{background:#E2C47A;}
         .lerr{color:#C0392B;font-size:12px;text-align:center;margin-top:10px;font-weight:500;}
         .lft{text-align:center;margin-top:28px;font-size:11px;color:#8A9BB0;}
