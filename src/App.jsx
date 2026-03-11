@@ -1230,11 +1230,87 @@ function DocumentsModule() {
 /* ═══════════════════════════════════════════════════════════════
    ROOT APP
 ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════════════════════ */
+const LOGIN_PASSWORD = "kht2025";
+
+function LoginScreen({ onLogin }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const handleSubmit = () => {
+    if (password === LOGIN_PASSWORD) {
+      sessionStorage.setItem("kht_auth", "true");
+      onLogin();
+    } else {
+      setError(true);
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      setTimeout(() => setError(false), 2500);
+    }
+  };
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'DM Sans',sans-serif;}
+        .lw{min-height:100vh;background:#0D1B2A;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+        .lw::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,#1A2E4522 0%,transparent 60%),radial-gradient(ellipse at 70% 20%,#C9A84C11 0%,transparent 50%);}
+        .lb{background:#fff;border-radius:16px;padding:48px 44px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.5);position:relative;z-index:1;border-top:3px solid #C9A84C;}
+        .ll h1{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:#0D1B2A;line-height:1.2;text-align:center;}
+        .ll span{display:block;font-size:10px;font-weight:600;color:#8A9BB0;letter-spacing:.18em;text-transform:uppercase;margin-top:6px;text-align:center;}
+        .ld{width:40px;height:2px;background:#C9A84C;margin:12px auto 28px;border-radius:2px;}
+        .llbl{display:block;font-size:11px;font-weight:700;color:#4A5568;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;}
+        .linp{width:100%;padding:12px 14px;border:1.5px solid #E8EDF3;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;color:#1A1A2E;outline:none;transition:border-color .15s;letter-spacing:.08em;}
+        .linp:focus{border-color:#C9A84C;}
+        .linp.err{border-color:#C0392B;background:#FEF2F2;}
+        .lbtn{width:100%;padding:13px;background:#C9A84C;color:#0D1B2A;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:20px;font-family:'DM Sans',sans-serif;letter-spacing:.04em;transition:background .15s;}
+        .lbtn:hover{background:#E2C47A;}
+        .lerr{color:#C0392B;font-size:12px;text-align:center;margin-top:10px;font-weight:500;}
+        .lft{text-align:center;margin-top:28px;font-size:11px;color:#8A9BB0;}
+        @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+        .shake{animation:shake .4s ease;}
+      `}</style>
+      <div className="lw">
+        <div className={`lb ${shake ? "shake" : ""}`}>
+          <div className="ll">
+            <h1>Kshirsagar<br />Hometextiles</h1>
+            <span>Enterprise Dashboard</span>
+          </div>
+          <div className="ld" />
+          <div style={{ marginBottom: 16 }}>
+            <label className="llbl">Password</label>
+            <input
+              className={`linp ${error ? "err" : ""}`}
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              autoFocus
+            />
+            {error && <div className="lerr">❌ Incorrect password. Please try again.</div>}
+          </div>
+          <button className="lbtn" onClick={handleSubmit}>🔐 Sign In</button>
+          <div className="lft">terrytowel.in · Secured Access</div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState("home");
   const [notif, setNotif] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem("kht_auth") === "true");
 
   const showNotif = (msg) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
+
+  if (!isLoggedIn) return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
 
   const nav = [
     { id: "home", icon: "🏠", label: "Dashboard" },
