@@ -241,92 +241,154 @@ body, #root { font-family: 'DM Sans', sans-serif; background: #FDFAF4; height: 1
 `;
 
 /* ═══════════════════════════════════════════════════════════════
-   PRINT TEMPLATES (exact from user's code)
+   PRINT TEMPLATES — v3 REDESIGN
 ═══════════════════════════════════════════════════════════════ */
 function HalfSheet({ data, type }) {
   const { recipient, dispatchInfo, items, sender } = data;
   const totalQty = items.reduce((acc, i) => acc + parseInt(i.qty || 0), 0);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent("https://terrytowel.in/")}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent("https://terrytowel.in/")}`;
+  const isCourier = type === "COURIER COPY";
+  const navy = "#0D1B2A", gold = "#C9A84C";
+
   return (
-    <div className="flex flex-col h-full justify-between p-4 px-8 box-border" style={{ fontFamily: "sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid black", paddingBottom: 4, marginBottom: 4 }}>
+    <div style={{ fontFamily: "'Arial', sans-serif", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box", background: "white", overflow: "hidden" }}>
+
+      {/* ── TOP HEADER BAND ── */}
+      <div style={{ background: navy, padding: "7px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1 }}>{sender.name}</div>
-          <div style={{ fontSize: 9, color: "#555", marginTop: 2, lineHeight: 1.4 }}>
-            {sender.address}, {sender.address2}, {sender.city} - {sender.zip}<br />
-            PH: {sender.phone} | {sender.email} | {sender.website}<br />
-            <span style={{ fontWeight: 700, color: "#1e40af" }}>{sender.quotationLink}</span>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "white", letterSpacing: "0.04em", textTransform: "uppercase", lineHeight: 1 }}>{sender.name}</div>
+          <div style={{ fontSize: 7.5, color: gold, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", marginTop: 3 }}>
+            {sender.address}, {sender.address2}, {sender.city} – {sender.zip} &nbsp;|&nbsp; {sender.phone} &nbsp;|&nbsp; {sender.website}
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-          <img src={qrUrl} alt="QR" style={{ width: 40, height: 40 }} />
-          <div style={{ background: "black", color: "white", fontSize: 9, fontWeight: 700, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{type}</div>
+        <div style={{ background: isCourier ? gold : "#FFFFFF22", color: isCourier ? navy : "white", fontSize: 8, fontWeight: 900, padding: "5px 14px", letterSpacing: "0.18em", textTransform: "uppercase", borderRadius: 3, border: isCourier ? "none" : "1.5px solid #ffffff44", whiteSpace: "nowrap" }}>
+          ✦ {type}
         </div>
       </div>
-      <div style={{ display: "flex", gap: 14, flexGrow: 1, marginBottom: 4 }}>
-        <div style={{ width: "70%", display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
-          <div style={{ border: "2px solid #2d2d2d", padding: 8, borderRadius: 4, background: "#f9f9f9", overflow: "hidden", maxHeight: 120 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#666", textTransform: "uppercase", marginBottom: 2 }}>To (Consignee):</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: "#111", lineHeight: 1.1, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{recipient.name}</div>
-            {recipient.company && <div style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{recipient.company}</div>}
-            <div style={{ fontSize: 12, lineHeight: 1.3, marginBottom: 2 }}>{recipient.address}</div>
-            <div style={{ fontSize: 12, fontWeight: 600 }}>{recipient.city}{recipient.state ? `, ${recipient.state}` : ""} - {recipient.zip}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4 }}>Ph: {recipient.phone}</div>
+
+      {/* ── MAIN BODY ── */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+
+        {/* LEFT — SHIP TO (dominant, max space) */}
+        <div style={{ flex: "0 0 58%", borderRight: `3px solid ${navy}`, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+
+          {/* FROM section */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 7, fontWeight: 900, color: "#999", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: 4 }}>From</div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: navy }}>{sender.name}</div>
+            <div style={{ fontSize: 9, color: "#555", lineHeight: 1.5, marginTop: 1 }}>{sender.address}, {sender.city} – {sender.zip}</div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ borderTop: `2px solid ${gold}`, marginBottom: 12 }} />
+
+          {/* BIG TO ADDRESS */}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ fontSize: 7.5, fontWeight: 900, color: gold, textTransform: "uppercase", letterSpacing: "0.22em", whiteSpace: "nowrap" }}>Ship To</div>
+              <div style={{ flex: 1, height: "1.5px", background: `${gold}55` }} />
+            </div>
+
+            {/* RECIPIENT NAME — super large */}
+            <div style={{ fontSize: 28, fontWeight: 900, color: navy, lineHeight: 1.1, marginBottom: 4, wordBreak: "break-word" }}>
+              {recipient.name}
+            </div>
+
+            {recipient.company && (
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#333", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #eee" }}>
+                {recipient.company}
+              </div>
+            )}
+
+            <div style={{ fontSize: 13, color: "#333", lineHeight: 1.8, marginBottom: 2 }}>
+              {recipient.address}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: navy, marginBottom: 8 }}>
+              {recipient.city}{recipient.state ? `, ${recipient.state}` : ""} &nbsp;–&nbsp; <span style={{ letterSpacing: "0.08em" }}>{recipient.zip}</span>
+            </div>
+
+            {recipient.phone && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F4F8", border: `1.5px solid #D8E2EE`, borderRadius: 5, padding: "5px 12px" }}>
+                <span style={{ fontSize: 13 }}>📞</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: navy, letterSpacing: "0.04em" }}>{recipient.phone}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Signature row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 12, paddingTop: 10, borderTop: "1px solid #E8EDF3" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: 90, borderBottom: "1.5px solid #555", marginBottom: 3 }} />
+              <div style={{ fontSize: 7, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", fontWeight: 700 }}>Receiver's Signature</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 7.5, fontWeight: 700, color: "#555", marginBottom: 14 }}>For {sender.name}</div>
+              <div style={{ width: 90, borderBottom: "1.5px solid #555", marginBottom: 3 }} />
+              <div style={{ fontSize: 7, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", fontWeight: 700 }}>Authorised Signatory</div>
+            </div>
           </div>
         </div>
-        <div style={{ width: "30%", display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ fontSize: 9 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}><strong>Date:</strong> {formatDateIndian(dispatchInfo.date)}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}><strong>Via:</strong> {dispatchInfo.courierName}</div>
-            {dispatchInfo.trackingNo && <div style={{ display: "flex", justifyContent: "space-between" }}><strong>Trk:</strong> {dispatchInfo.trackingNo}</div>}
+
+        {/* RIGHT — DISPATCH INFO + ITEMS */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "14px 14px 10px" }}>
+
+          {/* QR Code */}
+          <div style={{ textAlign: "center", marginBottom: 10 }}>
+            <img src={qrUrl} alt="QR" style={{ width: 72, height: 72, border: `2px solid ${navy}`, borderRadius: 6 }} />
+            <div style={{ fontSize: 7, color: "#aaa", marginTop: 3, letterSpacing: "0.1em", fontWeight: 700 }}>SCAN TO VERIFY</div>
           </div>
-          <table style={{ width: "100%", fontSize: 9, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#eee" }}>
-                <th style={{ border: "1px solid #aaa", padding: "2px 4px", textAlign: "left" }}>Item</th>
-                <th style={{ border: "1px solid #aaa", padding: "2px 4px", textAlign: "center", width: 28 }}>Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, i) => (
-                <tr key={i}>
-                  <td style={{ border: "1px solid #aaa", padding: "2px 4px", maxWidth: 80, overflow: "hidden" }}>
-                    <div style={{ fontWeight: 700 }}>{item.type}</div>
-                    {item.desc && <div style={{ color: "#666", fontSize: 8 }}>{item.desc}</div>}
-                  </td>
-                  <td style={{ border: "1px solid #aaa", padding: "2px 4px", textAlign: "center" }}>{item.qty}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td style={{ border: "1px solid #aaa", padding: "2px 4px", fontWeight: 700, textAlign: "right" }}>Total</td>
-                <td style={{ border: "1px solid #aaa", padding: "2px 4px", textAlign: "center", fontWeight: 700 }}>{totalQty}</td>
-              </tr>
-              {dispatchInfo.weight && (
+
+          {/* Dispatch Meta */}
+          <div style={{ borderRadius: 6, overflow: "hidden", border: `1.5px solid #D8E2EE`, marginBottom: 10 }}>
+            <div style={{ background: navy, padding: "5px 10px" }}>
+              <div style={{ fontSize: 8, fontWeight: 900, color: "white", letterSpacing: "0.14em", textTransform: "uppercase" }}>Dispatch Details</div>
+            </div>
+            {[
+              ["Date", formatDateIndian(dispatchInfo.date)],
+              ["Via", dispatchInfo.courierName],
+              ...(dispatchInfo.trackingNo ? [["Tracking #", dispatchInfo.trackingNo]] : []),
+              ...(dispatchInfo.weight ? [["Weight", `${dispatchInfo.weight} ${dispatchInfo.weightUnit}`]] : []),
+              ["Value", `₹ ${dispatchInfo.declaredValue || "0"}`],
+            ].map(([k, v], idx, arr) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "4px 10px", borderBottom: idx < arr.length - 1 ? "1px solid #F0F4F8" : "none", background: idx % 2 === 0 ? "white" : "#FAFCFF" }}>
+                <span style={{ fontSize: 8, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{k}</span>
+                <span style={{ fontSize: 9, fontWeight: 900, color: navy, textAlign: "right", maxWidth: "58%", wordBreak: "break-word" }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Items Table */}
+          <div style={{ borderRadius: 6, overflow: "hidden", border: `1.5px solid #D8E2EE`, flex: 1 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 8.5 }}>
+              <thead>
                 <tr>
-                  <td style={{ border: "1px solid #aaa", padding: "2px 4px", fontWeight: 700, textAlign: "right" }}>Wgt</td>
-                  <td style={{ border: "1px solid #aaa", padding: "2px 4px", textAlign: "center" }}>{dispatchInfo.weight} {dispatchInfo.weightUnit}</td>
+                  <th style={{ background: gold, color: navy, padding: "5px 8px", fontSize: 7.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "left" }}>Items Dispatched</th>
+                  <th style={{ background: gold, color: navy, padding: "5px 8px", fontSize: 7.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "center", width: 32 }}>Qty</th>
                 </tr>
-              )}
-            </tfoot>
-          </table>
-        </div>
-      </div>
-      <div style={{ marginTop: "auto" }}>
-        <div style={{ border: "1px solid #ccc", padding: "4px 8px", marginBottom: 4, background: "#f9f9f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 9 }}><strong>Value:</strong> ₹{dispatchInfo.declaredValue} <em style={{ color: "#888", marginLeft: 4 }}>(For Insurance)</em></div>
-          <div style={{ fontSize: 8, color: "#888", fontStyle: "italic" }}>"No Commercial Value"</div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ width: 88, borderBottom: "1px solid #999", marginBottom: 2 }} />
-            <div style={{ fontSize: 8, textTransform: "uppercase" }}>Receiver's Sign</div>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={i} style={{ background: i % 2 === 0 ? "white" : "#FFFDF5" }}>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #F5F0E8", verticalAlign: "top" }}>
+                      <div style={{ fontWeight: 800, color: navy, fontSize: 8.5 }}>{item.type}</div>
+                      {item.desc && <div style={{ color: "#888", fontSize: 7.5, marginTop: 1 }}>{item.desc}</div>}
+                    </td>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #F5F0E8", textAlign: "center", fontWeight: 900, color: navy }}>{item.qty}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: `${navy}11` }}>
+                  <td style={{ padding: "5px 8px", fontWeight: 900, textAlign: "right", color: navy, fontSize: 9, borderTop: `2px solid ${navy}` }}>Total Pieces</td>
+                  <td style={{ padding: "5px 8px", textAlign: "center", fontWeight: 900, color: navy, fontSize: 11, borderTop: `2px solid ${navy}` }}>{totalQty}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 8, fontWeight: 700, marginBottom: 8 }}>For {sender.name}</div>
-            <div style={{ width: 88, borderBottom: "1px solid #999", marginBottom: 2 }} />
-            <div style={{ fontSize: 8, textTransform: "uppercase" }}>Auth. Signatory</div>
+
+          {/* GST note */}
+          <div style={{ marginTop: 8, fontSize: 7.5, color: "#888", textAlign: "center" }}>
+            GST: <strong style={{ color: navy }}>{sender.gst}</strong> &nbsp;·&nbsp; No Commercial Value
           </div>
         </div>
       </div>
@@ -336,16 +398,29 @@ function HalfSheet({ data, type }) {
 
 function PrintTemplate({ data }) {
   return (
-    <div style={{ width: "210mm", height: "280mm", background: "white", display: "flex", flexDirection: "column", position: "relative" }}>
-      <div style={{ height: "50%", borderBottom: "2px dashed #aaa", position: "relative" }}>
+    <div style={{ width: "210mm", height: "297mm", background: "white", display: "flex", flexDirection: "column", fontFamily: "Arial, sans-serif" }}>
+
+      {/* ── COURIER COPY (top half — paste on parcel) ── */}
+      <div style={{ flex: 1, overflow: "hidden" }}>
         <HalfSheet data={data} type="COURIER COPY" />
-        <div style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", background: "white", padding: "0 8px", fontSize: 9, color: "#888", display: "flex", alignItems: "center", gap: 4 }}>
-          <Scissors size={9} /> TEAR HERE
-        </div>
       </div>
-      <div style={{ height: "50%", paddingTop: 8 }}>
+
+      {/* ── CUT LINE ── */}
+      <div style={{ flexShrink: 0, height: 22, display: "flex", alignItems: "center", background: "#F8FAFC" }}>
+        <div style={{ flex: 1, borderTop: "2px dashed #94A3B8" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px", fontSize: 8, color: "#64748B", fontWeight: 900, letterSpacing: "0.16em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+          <Scissors size={12} color="#94A3B8" />
+          CUT &amp; PASTE ON PARCEL
+          <Scissors size={12} color="#94A3B8" style={{ transform: "scaleX(-1)" }} />
+        </div>
+        <div style={{ flex: 1, borderTop: "2px dashed #94A3B8" }} />
+      </div>
+
+      {/* ── OFFICE COPY (bottom half — keep for records) ── */}
+      <div style={{ flex: 1, overflow: "hidden" }}>
         <HalfSheet data={data} type="OFFICE COPY" />
       </div>
+
     </div>
   );
 }
