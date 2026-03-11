@@ -20,7 +20,7 @@ const SENDER = {
   address: "Nath Pride, Near Civil Hospital",
   address2: "Civil Chowk",
   city: "Solapur", state: "Maharashtra", zip: "413003", country: "India",
-  email: "info@kshirsagar.com", phone: "+91 98225 49824", gst: "27AAAAA0000A1Z5"
+  email: "info@kshirsagar.com", phone: "+91 98225 49824", gst: "27ANLPK9383J1Z8"
 };
 
 const formatDateIndian = (dateVal) => {
@@ -300,11 +300,16 @@ function HalfSheet({ data, type }) {
               </div>
             )}
 
-            <div style={{ fontSize: 13, color: "#333", lineHeight: 1.8, marginBottom: 2 }}>
-              {recipient.address}
+            <div style={{ fontSize: 15, color: "#333", lineHeight: 1.9, marginBottom: 2 }}>
+              {(() => {
+                const parts = (recipient.address || "").split(",");
+                const line1 = parts.slice(0, 2).join(",");
+                const line2 = parts.slice(2).join(",").trim();
+                return (<>{line1}{line2 && <><br />{line2}</>}</>);
+              })()}
             </div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: navy, marginBottom: 8 }}>
-              {recipient.city}{recipient.state ? `, ${recipient.state}` : ""} &nbsp;–&nbsp; <span style={{ letterSpacing: "0.08em" }}>{recipient.zip}</span>
+            <div style={{ fontSize: 16, fontWeight: 900, color: navy, marginBottom: 8 }}>
+              {recipient.city}{recipient.state ? `,\u00A0${recipient.state}` : ""} &nbsp;–&nbsp; <span style={{ letterSpacing: "0.08em" }}>{recipient.zip}</span>
             </div>
 
             {recipient.phone && (
