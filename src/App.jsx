@@ -879,18 +879,26 @@ function StatusTag({ s }) {
   return <span className={`tag ${m[s] || "tag-gray"}`}>{s}</span>;
 }
 
-function HomeModule() {
+function HomeModule({ setActive }) {
   const stats = [
-    { label: "Orders (Month)", value: "247", sub: "+12% vs last month", c: "gold" },
-    { label: "Active Customers", value: "84", sub: "5 new this week", c: "blue" },
-    { label: "Products Listed", value: "32", sub: "8 categories", c: "green" },
-    { label: "Pending Dispatch", value: "18", sub: "Due today: 7", c: "red" },
+    { label: "Orders (Month)", value: "247", sub: "+12% vs last month", c: "gold", target: "dispatch" },
+    { label: "Active Customers", value: "84", sub: "5 new this week", c: "blue", target: "crm" },
+    { label: "Products Listed", value: "32", sub: "8 categories", c: "green", target: "products" },
+    { label: "Pending Dispatch", value: "18", sub: "Due today: 7", c: "red", target: "dispatch" },
   ];
   const recent = [
     { id: "KHT-0291", cust: "Rajesh Mehta", prod: "Bath Towel 450GSM × 50", status: "Dispatched" },
     { id: "KHT-0290", cust: "Sunita Kapoor", prod: "Hand Towel Set × 100", status: "Packing" },
     { id: "KHT-0289", cust: "Amit Sharma", prod: "Bath Mat × 30", status: "Dispatched" },
     { id: "KHT-0288", cust: "Vikram Joshi", prod: "Sports Towel × 25", status: "Pending" },
+  ];
+  const quickActions = [
+    { icon: "🏷️", label: "Print Label", target: "dispatch" },
+    { icon: "✉️", label: "Print Envelope", target: "dispatch" },
+    { icon: "👥", label: "Add Customer", target: "crm" },
+    { icon: "📦", label: "Add Product", target: "products" },
+    { icon: "📣", label: "Newsletter", target: "marketing" },
+    { icon: "📂", label: "Upload Doc", target: "documents" },
   ];
   return (
     <div>
@@ -899,11 +907,11 @@ function HomeModule() {
           <div className="st">Good morning 👋 Kshirsagar Hometextiles</div>
           <div className="text-sm text-lt mt2">Here's your business snapshot for today</div>
         </div>
-        <button className="btn btn-gold btn-sm">+ New Order</button>
+        <button className="btn btn-gold btn-sm" onClick={() => setActive("dispatch")}>+ New Dispatch</button>
       </div>
       <div className="g4 mb4">
         {stats.map(s => (
-          <div key={s.label} className={`stat ${s.c}`}>
+          <div key={s.label} className={`stat ${s.c}`} onClick={() => setActive(s.target)} style={{ cursor: "pointer" }}>
             <div className="stat-n">{s.value}</div>
             <div className="stat-l">{s.label}</div>
             <div className="stat-s">{s.sub}</div>
@@ -913,12 +921,12 @@ function HomeModule() {
       <div className="g2">
         <div className="card">
           <div className="card-title">Recent Orders</div>
-          <div className="card-sub">Latest dispatch activity</div>
+          <div className="card-sub">Latest dispatch activity — click any row to open Dispatch</div>
           <table className="tbl">
             <thead><tr><th>Order ID</th><th>Customer</th><th>Status</th></tr></thead>
             <tbody>
               {recent.map(o => (
-                <tr key={o.id}>
+                <tr key={o.id} onClick={() => setActive("dispatch")} style={{ cursor: "pointer" }}>
                   <td><span className="fw6 text-gold">{o.id}</span></td>
                   <td><div className="fw6">{o.cust}</div><div className="text-xs text-lt">{o.prod}</div></td>
                   <td><span className={`tag ${o.status === "Dispatched" ? "tag-green" : o.status === "Packing" ? "tag-blue" : "tag-red"}`}>{o.status}</span></td>
@@ -929,10 +937,17 @@ function HomeModule() {
         </div>
         <div className="card">
           <div className="card-title">Quick Actions</div>
-          <div className="card-sub">Jump to frequently used features</div>
+          <div className="card-sub">Click any tile to jump to that module</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 4 }}>
-            {[["🏷️", "Print Label"], ["✉️", "Print Envelope"], ["👥", "Add Customer"], ["📦", "Add Product"], ["📣", "Newsletter"], ["📂", "Upload Doc"]].map(([icon, label]) => (
-              <div key={label} className="card" style={{ padding: "10px 12px", cursor: "pointer" }}>
+            {quickActions.map(({ icon, label, target }) => (
+              <div
+                key={label}
+                className="card"
+                style={{ padding: "10px 12px", cursor: "pointer", transition: "border-color .15s, transform .15s" }}
+                onClick={() => setActive(target)}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#C9A84C"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = ""; e.currentTarget.style.transform = ""; }}
+              >
                 <div style={{ fontSize: 20 }}>{icon}</div>
                 <div style={{ fontSize: 12, fontWeight: 600, marginTop: 5 }}>{label}</div>
               </div>
@@ -1361,7 +1376,7 @@ export default function App() {
             </div>
           </div>
           <div className="content">
-            {active === "home" && <HomeModule />}
+            {active === "home" && <HomeModule setActive={setActive} />}
             {active === "dispatch" && <DispatchModule showNotif={showNotif} />}
             {active === "products" && <ProductsModule />}
             {active === "crm" && <CRMModule />}
