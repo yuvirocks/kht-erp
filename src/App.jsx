@@ -1317,7 +1317,359 @@ function ProductsModule() {
   const [tempUrl, setTempUrl] = useState(driveUrl);
   const [shareToast, setShareToast] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [creatingCat, setCreatingCat] = useState(false);
   const fileRef = useRef();
+
+  const fetchImages = async () => {
+    if (!driveUrl) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${driveUrl}?action=list&t=${Date.now()}`);
+      const data = await res.json();
+      if (data.ok) setImages(data.images || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchImages(); }, [driveUrl]);
+  useEffect(() => {
+    if (!driveUrl) return;
+    const t = setInterval(fetchImages, 30000);
+    return () => clearInterval(t);
+  }, [driveUrl]);
+
+  const cats = Array.from(new Set(images.map(i => i.cat))).sort();
+  const filtered = images.filter(img =>
+    (filter === "All" || img.cat === filter) &&
+    img.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const catCounts = images.reduce((acc, img) => {
+    acc[img.cat] = (acc[img.cat] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Folder emoji map
+  const folderEmoji = (cat) => {
+    const map = {
+      "Bath Towels": "🛁", "Hand Towels": "🤲", "Face Towels": "💆",
+      "Bath Mats": "🟫", "Sports Towels": "💪", "Kitchen Towels": "🍽️",
+      "Pool Towels": "🏊", "Bath Robes": "🥋", "Fabric Swatches": "🧵",
+      "Uncategorised": "📄"
+    };
+    return map[cat] || "📁";
+  };
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !driveUrl) return;
+    const cat = uploadCat || (filter !== "All" ? filter : "Uncategorised");
+    setUploading(true);
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const resp = await fetch(driveUrl, {
+        method: "POST",
+        body: JSON.stringify({ base64, mimeType: file.type, filename: file.name, category: cat })
+      });
+      const data = await resp.json();
+      if (data.ok) { setImages(prev => [data, ...prev]); setSelected(data); }
+    } catch { alert("Upload failed. Check your script URL."); }
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  const createCategory = async () => {
+    if (!newCatName.trim() || !driveUrl) return;
+    setCreatingCat(true);
+    try {
+      // Upload a tiny placeholder to create the folder, then delete it client-side
+      const placeholder = btoa("KHT");
+      const resp = await fetch(driveUrl, {
+        method: "POST",
+        body: JSON.stringify({ base64: placeholder, mimeType: "image/png", filename: ".keep", category: newCatName.trim() })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setShowAddCat(false);
+        setNewCatName("");
+        setFilter(newCatName.trim());
+        await fetchImages();
+        setShareToast(`📁 "${newCatName.trim()}" folder created!`);
+        setTimeout(() => setShareToast(null), 2500);
+      }
+    } catch { alert("Could not create folder."); }
+    setCreatingCat(false);
+  };
+
+  const shareOptions = (img) => [
+    { label: "📋 Copy Link", action: () => { navigator.clipboard.writeText(img.shareUrl); setShareToast("Link copied!"); setTimeout(() => setShareToast(null), 2500); } },
+    { label: "💬 WhatsApp", action: () => window.open(`https://wa.me/?text=${encodeURIComponent(img.name + "\n" + img.shareUrl)}`, "_blank") },
+    { label: "✉️ Email", action: () => window.open(`mailto:?subject=${encodeURIComponent(img.name)}&body=${encodeURIComponent("Product image:\n" + img.shareUrl)}`, "_blank") },
+    { label: "⬇️ Download", action: () => window.open(`https://drive.google.com/uc?export=download&id=${img.id}`, "_blank") },
+    { label: "🔗 Open in Drive", action: () => window.open(img.shareUrl, "_blank") },
+  ];
+
+  const saveUrl = () => {
+    localStorage.setItem("kht_products_drive", tempUrl);
+    setDriveUrl(tempUrl);
+    setShowSetup(false);
+  };
+
+  return (
+    <div>
+      {shareToast && <div className="notif">{shareToast}</div>}
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleUpload} />
+
+      {/* HEADER */}
+      <div className="sh">
+        <div>
+          <div className="st">📦 Products Database</div>
+          <div className="text-sm text-lt" style={{ marginTop: 2 }}>
+            {driveUrl ? `${images.length} photos · ${cats.length} categories · synced from Google Drive` : "Connect Google Drive to get started"}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {driveUrl && <>
+            <button className="btn btn-out btn-sm" onClick={fetchImages} disabled={loading}>
+              <RefreshCw size={13} className={loading ? "spin" : ""} /> {loading ? "Syncing…" : "Sync"}
+            </button>
+            <button className="btn btn-gold btn-sm" onClick={() => {
+              setUploadCat(filter !== "All" ? filter : "Uncategorised");
+              fileRef.current?.click();
+            }} disabled={uploading}>
+              {uploading ? "Uploading…" : "📸 Upload Photo"}
+            </button>
+          </>}
+          <button className="btn btn-out btn-sm" onClick={() => { setTempUrl(driveUrl); setShowSetup(true); }}>
+            <Settings size={13} /> {driveUrl ? "Settings" : "⚠️ Connect Drive"}
+          </button>
+        </div>
+      </div>
+
+      {/* NOT CONNECTED */}
+      {!driveUrl && (
+        <div className="card" style={{ textAlign: "center", padding: "48px 32px" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Connect Google Drive</div>
+          <div className="text-sm text-lt" style={{ maxWidth: 420, margin: "0 auto 20px" }}>
+            Deploy the Products Drive Apps Script, paste the URL here. Drive folders become product categories automatically.
+          </div>
+          <button className="btn btn-gold" onClick={() => setShowSetup(true)}>Connect Now →</button>
+        </div>
+      )}
+
+      {driveUrl && (
+        <>
+          {/* ── FOLDER TILES ROW ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: ".12em" }}>Categories</div>
+              <button className="btn btn-out btn-sm" onClick={() => setShowAddCat(true)} style={{ fontSize: 11 }}>
+                <Plus size={12} /> New Category
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {/* ALL tile */}
+              <div
+                onClick={() => setFilter("All")}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+                  border: filter === "All" ? "2px solid var(--gold)" : "1.5px solid var(--border)",
+                  background: filter === "All" ? "var(--gold-p)" : "var(--white)",
+                  transition: "all .15s", boxShadow: filter === "All" ? "0 2px 8px rgba(196,145,58,.2)" : "var(--shadow-sm)"
+                }}
+              >
+                <div style={{ fontSize: 28, lineHeight: 1 }}>🗂️</div>
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 5, color: filter === "All" ? "var(--gold)" : "var(--text-dark)", textAlign: "center" }}>All</div>
+                <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 2 }}>{images.length} photos</div>
+              </div>
+
+              {/* Category tiles */}
+              {cats.map(cat => (
+                <div
+                  key={cat}
+                  onClick={() => { setFilter(cat); setUploadCat(cat); }}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                    width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+                    border: filter === cat ? "2px solid var(--gold)" : "1.5px solid var(--border)",
+                    background: filter === cat ? "var(--gold-p)" : "var(--white)",
+                    transition: "all .15s", boxShadow: filter === cat ? "0 2px 8px rgba(196,145,58,.2)" : "var(--shadow-sm)"
+                  }}
+                >
+                  <div style={{ fontSize: 28, lineHeight: 1 }}>{folderEmoji(cat)}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, marginTop: 5, color: filter === cat ? "var(--gold)" : "var(--text-dark)", textAlign: "center", lineHeight: 1.3, wordBreak: "break-word" }}>{cat}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 2 }}>{catCounts[cat] || 0} photos</div>
+                </div>
+              ))}
+
+              {/* Add new folder tile */}
+              <div
+                onClick={() => setShowAddCat(true)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+                  border: "1.5px dashed var(--border)",
+                  background: "transparent", transition: "all .15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.background = "var(--gold-pp)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
+              >
+                <div style={{ fontSize: 28, lineHeight: 1, opacity: .5 }}>📁</div>
+                <div style={{ fontSize: 10, fontWeight: 700, marginTop: 5, color: "var(--text-light)", textAlign: "center" }}>+ Add Folder</div>
+              </div>
+            </div>
+          </div>
+
+          {/* SEARCH BAR */}
+          <div style={{ marginBottom: 16 }}>
+            <input className="inp" style={{ maxWidth: 280 }} placeholder={`🔍 Search ${filter === "All" ? "all products" : filter}…`} value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+
+          {/* IMAGES + SIDEBAR */}
+          <div className="flex gap4" style={{ alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              {loading && images.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <div className="dots" style={{ justifyContent: "center", marginBottom: 12 }}><span /><span /><span /></div>
+                  <div className="text-sm text-lt">Loading from Google Drive…</div>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <div style={{ fontSize: 40, marginBottom: 10 }}>📂</div>
+                  <div className="text-sm text-lt">No images in {filter === "All" ? "any folder" : `"${filter}"`} yet.</div>
+                  <button className="btn btn-gold btn-sm" style={{ marginTop: 12 }} onClick={() => fileRef.current?.click()}>📸 Upload First Photo</button>
+                </div>
+              ) : (
+                <div className="prod-grid">
+                  {filtered.map(img => (
+                    <div key={img.id} className="prod-card" onClick={() => setSelected(img)}
+                      style={{ border: selected?.id === img.id ? "2px solid var(--gold)" : undefined, position: "relative" }}>
+                      <div className="prod-img" style={{ background: "#f0ebe2", position: "relative", overflow: "hidden" }}>
+                        {imageErrors[img.id] ? <div style={{ fontSize: 32 }}>🖼️</div> : (
+                          <img src={img.thumb || img.url} alt={img.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                            onError={() => setImageErrors(prev => ({ ...prev, [img.id]: true }))} />
+                        )}
+                      </div>
+                      <div className="prod-info">
+                        <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
+                        <div className="text-xs text-lt">{img.cat}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 2 }}>{img.date}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Upload tile */}
+                  <div className="upload-z prod-card"
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 175, cursor: uploading ? "not-allowed" : "pointer" }}
+                    onClick={() => !uploading && fileRef.current?.click()}>
+                    <div style={{ fontSize: 30 }}>{uploading ? "⏳" : "📸"}</div>
+                    <div className="text-xs text-lt mt2">{uploading ? "Uploading…" : "Upload Photo"}</div>
+                    {!uploading && <div style={{ fontSize: 9, color: "var(--text-light)", marginTop: 4 }}>→ {filter !== "All" ? filter : "Uncategorised"}</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* DETAIL SIDEBAR */}
+            {selected && (
+              <div className="card" style={{ width: 280, flexShrink: 0, position: "sticky", top: 0 }}>
+                <div style={{ width: "100%", height: 180, borderRadius: 8, overflow: "hidden", marginBottom: 14, background: "#f0ebe2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {imageErrors[selected.id] ? <div style={{ fontSize: 48 }}>🖼️</div> : (
+                    <img src={selected.url} alt={selected.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={() => setImageErrors(prev => ({ ...prev, [selected.id]: true }))} />
+                  )}
+                </div>
+                <div className="card-title" style={{ marginBottom: 4 }}>{selected.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontSize: 16 }}>{folderEmoji(selected.cat)}</span>
+                  <span className="tag tag-gold">{selected.cat}</span>
+                </div>
+                <div className="divider" />
+                {[["Date Added", selected.date || "—"], ["Folder", selected.cat], ["File", selected.filename || "—"]].map(([l, v]) => (
+                  <div key={l} className="flex justify-b mb2">
+                    <span className="text-xs text-lt" style={{ textTransform: "uppercase", letterSpacing: ".06em" }}>{l}</span>
+                    <span className="text-sm fw6" style={{ textAlign: "right", maxWidth: "60%" }}>{v}</span>
+                  </div>
+                ))}
+                <div className="divider" />
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Share This Image</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {shareOptions(selected).map(opt => (
+                    <button key={opt.label} className="btn btn-out btn-full btn-sm" style={{ justifyContent: "flex-start", fontSize: 12 }} onClick={opt.action}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="divider" />
+                <button className="btn btn-out btn-full btn-sm" onClick={() => setSelected(null)} style={{ color: "var(--text-light)" }}>✕ Close</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ADD CATEGORY MODAL */}
+      {showAddCat && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="card" style={{ width: 380, boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>📁 New Category Folder</div>
+              <button className="btn btn-out btn-sm" onClick={() => { setShowAddCat(false); setNewCatName(""); }}><X size={14} /></button>
+            </div>
+            <div className="text-sm text-lt" style={{ marginBottom: 14 }}>
+              This will create a new folder in your <strong>KHT Products Database</strong> on Google Drive.
+            </div>
+            <label className="lbl">Category Name</label>
+            <input
+              className="inp" style={{ marginBottom: 16 }}
+              placeholder="e.g. Premium Towels, Export Range…"
+              value={newCatName}
+              onChange={e => setNewCatName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && createCategory()}
+              autoFocus
+            />
+            <div className="flex gap3">
+              <button className="btn btn-gold btn-full" onClick={createCategory} disabled={!newCatName.trim() || creatingCat}>
+                {creatingCat ? "Creating…" : "✓ Create Folder"}
+              </button>
+              <button className="btn btn-out" onClick={() => { setShowAddCat(false); setNewCatName(""); }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DRIVE SETTINGS MODAL */}
+      {showSetup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="card" style={{ width: 520, maxWidth: "90vw", boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>🔗 Drive Settings</div>
+              <button className="btn btn-out btn-sm" onClick={() => setShowSetup(false)}><X size={14} /></button>
+            </div>
+            <label className="lbl">Google Apps Script Deployment URL</label>
+            <input className="inp" style={{ marginBottom: 14 }}
+              placeholder="https://script.google.com/macros/s/…/exec"
+              value={tempUrl} onChange={e => setTempUrl(e.target.value)} />
+            <div className="flex gap3">
+              <button className="btn btn-gold btn-full" onClick={saveUrl} disabled={!tempUrl}>Save & Connect</button>
+              <button className="btn btn-out" onClick={() => setShowSetup(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
   const DEFAULT_CATS = [
     "Bath Towels", "Hand Towels", "Face Towels", "Bath Mats",
