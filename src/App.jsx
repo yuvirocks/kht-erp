@@ -1310,6 +1310,8 @@ function ProductsModule() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+  const [multiSel, setMultiSel] = useState([]); // multi-select IDs
+  const [multiMode, setMultiMode] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadCat, setUploadCat] = useState("");
   const [driveUrl, setDriveUrl] = useState(() => localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL);
@@ -1320,6 +1322,7 @@ function ProductsModule() {
   const [showAddCat, setShowAddCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [creatingCat, setCreatingCat] = useState(false);
+  const [waSharing, setWaSharing] = useState(false);
   const fileRef = useRef();
 
   const fetchImages = async () => {
@@ -1408,13 +1411,50 @@ function ProductsModule() {
     setCreatingCat(false);
   };
 
+  // Single image: share actual photo via Web Share API, fallback to link
+  const sharePhotoDirectly = async (img) => {
+    if (navigator.canShare) {
+      try {
+        setWaSharing(true);
+        setShareToast("Fetching image…");
+        const resp = await fetch(`https://drive.google.com/uc?export=download&id=${img.id}`);
+        const blob = await resp.blob();
+        const file = new File([blob], img.filename || `${img.name}.jpg`, { type: blob.type || "image/jpeg" });
+        if (navigator.canShare({ files: [file] })) {
+          setShareToast(null);
+          await navigator.share({ files: [file], title: img.name, text: "From Kshirsagar Hometextiles" });
+          setWaSharing(false);
+          return;
+        }
+      } catch (e) { /* fall through to link */ }
+      setWaSharing(false);
+    }
+    // Fallback: open WhatsApp with link
+    window.open(`https://wa.me/?text=${encodeURIComponent(img.name + "\n" + img.shareUrl)}`, "_blank");
+  };
+
+  // Multiple images: send all links in one WhatsApp message
+  const shareMultipleViaWA = (imgs) => {
+    const text = `*Kshirsagar Hometextiles — Product Images*\n\n` +
+      imgs.map((img, i) => `${i + 1}. *${img.name}*\n${img.shareUrl}`).join("\n\n");
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
   const shareOptions = (img) => [
     { label: "📋 Copy Link", action: () => { navigator.clipboard.writeText(img.shareUrl); setShareToast("Link copied!"); setTimeout(() => setShareToast(null), 2500); } },
-    { label: "💬 WhatsApp", action: () => window.open(`https://wa.me/?text=${encodeURIComponent(img.name + "\n" + img.shareUrl)}`, "_blank") },
+    { label: waSharing ? "⏳ Preparing…" : "💬 WhatsApp (Photo)", action: () => !waSharing && sharePhotoDirectly(img) },
     { label: "✉️ Email", action: () => window.open(`mailto:?subject=${encodeURIComponent(img.name)}&body=${encodeURIComponent("Product image:\n" + img.shareUrl)}`, "_blank") },
     { label: "⬇️ Download", action: () => window.open(`https://drive.google.com/uc?export=download&id=${img.id}`, "_blank") },
     { label: "🔗 Open in Drive", action: () => window.open(img.shareUrl, "_blank") },
   ];
+
+  // Toggle image in multi-select
+  const toggleMultiSel = (img) => {
+    setMultiSel(prev => prev.find(i => i.id === img.id)
+      ? prev.filter(i => i.id !== img.id)
+      : [...prev, img]
+    );
+  };
 
   const saveUrl = () => {
     localStorage.setItem("kht_products_drive", tempUrl);
@@ -1549,33 +1589,97 @@ function ProductsModule() {
                   <button className="btn btn-gold btn-sm" style={{ marginTop: 12 }} onClick={() => fileRef.current?.click()}>📸 Upload First Photo</button>
                 </div>
               ) : (
-                <div className="prod-grid">
-                  {filtered.map(img => (
-                    <div key={img.id} className="prod-card" onClick={() => setSelected(img)}
-                      style={{ border: selected?.id === img.id ? "2px solid var(--gold)" : undefined, position: "relative" }}>
-                      <div className="prod-img" style={{ background: "#f0ebe2", position: "relative", overflow: "hidden" }}>
-                        {imageErrors[img.id] ? <div style={{ fontSize: 32 }}>🖼️</div> : (
-                          <img src={img.thumb || img.url} alt={img.name}
-                            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
-                            onError={() => setImageErrors(prev => ({ ...prev, [img.id]: true }))} />
-                        )}
-                      </div>
-                      <div className="prod-info">
-                        <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
-                        <div className="text-xs text-lt">{img.cat}</div>
-                        <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 2 }}>{img.date}</div>
-                      </div>
+                <>
+                  {/* MULTI-SELECT TOOLBAR */}
+                  {multiMode && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, background: "var(--navy)", borderRadius: 10, padding: "10px 16px" }}>
+                      <span style={{ color: "white", fontSize: 13, fontWeight: 600, flex: 1 }}>
+                        {multiSel.length} photo{multiSel.length !== 1 ? "s" : ""} selected
+                      </span>
+                      {multiSel.length > 0 && (
+                        <>
+                          <button className="btn btn-gold btn-sm" onClick={() => shareMultipleViaWA(multiSel)}>
+                            💬 WhatsApp ({multiSel.length})
+                          </button>
+                          <button className="btn btn-out btn-sm" style={{ color: "white", borderColor: "rgba(255,255,255,.3)" }}
+                            onClick={() => {
+                              const text = multiSel.map(i => i.shareUrl).join("\n");
+                              navigator.clipboard.writeText(text);
+                              setShareToast(`${multiSel.length} links copied!`);
+                              setTimeout(() => setShareToast(null), 2500);
+                            }}>
+                            📋 Copy All Links
+                          </button>
+                        </>
+                      )}
+                      <button className="btn btn-out btn-sm" style={{ color: "rgba(255,255,255,.6)", borderColor: "rgba(255,255,255,.2)" }}
+                        onClick={() => { setMultiMode(false); setMultiSel([]); }}>
+                        ✕ Cancel
+                      </button>
                     </div>
-                  ))}
-                  {/* Upload tile */}
-                  <div className="upload-z prod-card"
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 175, cursor: uploading ? "not-allowed" : "pointer" }}
-                    onClick={() => !uploading && fileRef.current?.click()}>
-                    <div style={{ fontSize: 30 }}>{uploading ? "⏳" : "📸"}</div>
-                    <div className="text-xs text-lt mt2">{uploading ? "Uploading…" : "Upload Photo"}</div>
-                    {!uploading && <div style={{ fontSize: 9, color: "var(--text-light)", marginTop: 4 }}>→ {filter !== "All" ? filter : "Uncategorised"}</div>}
+                  )}
+                  <div className="prod-grid">
+                    {filtered.map(img => {
+                      const isMultiSelected = multiSel.find(i => i.id === img.id);
+                      const isSingleSelected = !multiMode && selected?.id === img.id;
+                      return (
+                        <div key={img.id} className="prod-card"
+                          onClick={() => {
+                            if (multiMode) { toggleMultiSel(img); }
+                            else { setSelected(img); }
+                          }}
+                          onContextMenu={e => { e.preventDefault(); setMultiMode(true); toggleMultiSel(img); setSelected(null); }}
+                          style={{
+                            border: isMultiSelected ? "2.5px solid var(--gold)" : isSingleSelected ? "2px solid var(--gold)" : undefined,
+                            position: "relative",
+                            outline: isMultiSelected ? "3px solid rgba(196,145,58,.25)" : "none",
+                            transition: "all .15s"
+                          }}>
+                          {/* Multi-select checkbox */}
+                          {multiMode && (
+                            <div style={{
+                              position: "absolute", top: 7, right: 7, zIndex: 2,
+                              width: 20, height: 20, borderRadius: "50%",
+                              background: isMultiSelected ? "var(--gold)" : "rgba(255,255,255,.9)",
+                              border: isMultiSelected ? "2px solid var(--gold)" : "2px solid #ccc",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 11, fontWeight: 900, color: "var(--navy)",
+                              boxShadow: "0 1px 4px rgba(0,0,0,.2)"
+                            }}>
+                              {isMultiSelected ? "✓" : ""}
+                            </div>
+                          )}
+                          <div className="prod-img" style={{ background: "#f0ebe2", position: "relative", overflow: "hidden" }}>
+                            {imageErrors[img.id] ? <div style={{ fontSize: 32 }}>🖼️</div> : (
+                              <img src={img.thumb || img.url} alt={img.name}
+                                style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                                onError={() => setImageErrors(prev => ({ ...prev, [img.id]: true }))} />
+                            )}
+                          </div>
+                          <div className="prod-info">
+                            <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{img.name}</div>
+                            <div className="text-xs text-lt">{img.cat}</div>
+                            <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 2 }}>{img.date}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* Upload tile */}
+                    <div className="upload-z prod-card"
+                      style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 175, cursor: uploading ? "not-allowed" : "pointer" }}
+                      onClick={() => !uploading && fileRef.current?.click()}>
+                      <div style={{ fontSize: 30 }}>{uploading ? "⏳" : "📸"}</div>
+                      <div className="text-xs text-lt mt2">{uploading ? "Uploading…" : "Upload Photo"}</div>
+                      {!uploading && <div style={{ fontSize: 9, color: "var(--text-light)", marginTop: 4 }}>→ {filter !== "All" ? filter : "Uncategorised"}</div>}
+                    </div>
                   </div>
-                </div>
+                  {/* Multi-select hint */}
+                  {!multiMode && filtered.length > 0 && (
+                    <div style={{ textAlign: "center", marginTop: 10, fontSize: 10.5, color: "var(--text-light)" }}>
+                      💡 Long-press or <button onClick={() => setMultiMode(true)} style={{ background: "none", border: "none", color: "var(--gold)", fontWeight: 700, cursor: "pointer", fontSize: 10.5, padding: 0 }}>click here</button> to select multiple photos for bulk sharing
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
