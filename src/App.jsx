@@ -2374,6 +2374,317 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   PRODUCT DESIGNER MODULE  (Gemini Image Generation)
+═══════════════════════════════════════════════════════════════ */
+function ProductDesignerModule() {
+  const [base64Image, setBase64Image] = useState(null);
+  const [mimeType, setMimeType] = useState("image/jpeg");
+  const [preview, setPreview] = useState(null);
+  const [resultSrc, setResultSrc] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("kht_gemini_key") || "");
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [tempKey, setTempKey] = useState("");
+  const [gsm, setGsm] = useState(null);
+
+  const [fields, setFields] = useState({
+    quality: "White Hand Towel",
+    style: "Jacquard Border",
+    design: "Classic Dobby",
+    size: "14 x 21 inches",
+    weight: "80",
+  });
+
+  const fileRef = useRef();
+
+  const calcGsm = (size, weight) => {
+    const dims = size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
+    const w = parseFloat(weight);
+    if (!dims || !w) return null;
+    const areaSqM = (parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254);
+    return Math.ceil((w / areaSqM) / 5) * 5;
+  };
+
+  useEffect(() => {
+    setGsm(calcGsm(fields.size, fields.weight));
+  }, [fields.size, fields.weight]);
+
+  const handleFile = (file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    setMimeType(file.type);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setBase64Image(e.target.result.split(",")[1]);
+      setPreview(e.target.result);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const applyWatermark = (b64) => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      ctx.font = `bold ${Math.floor(canvas.width * 0.035)}px Plus Jakarta Sans, sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.globalAlpha = 0.15; ctx.fillStyle = "white";
+      ctx.shadowColor = "rgba(0,0,0,.2)"; ctx.shadowBlur = 4;
+      ctx.fillText("terrytowel.in", canvas.width / 2, canvas.height / 2);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.src = `data:image/png;base64,${b64}`;
+  });
+
+  const generate = async () => {
+    if (!base64Image) { setError("Please upload a product sample photo first."); return; }
+    if (!apiKey) { setShowKeyModal(true); setTempKey(""); return; }
+    setLoading(true); setError(null);
+    const gsmStr = gsm ? `(${gsm} GSM)` : "";
+    const prompt = `Task: Create an ultra-premium 8K product showcase image for a hotel supplier.
+Input: The attached photo is the actual product sample.
+Requirement: Keep the SPECIFIC jacquard woven border design EXACTLY as seen in the source photo.
+
+Composition:
+1. Large hanging towel in center showing full texture and border.
+2. Two matching towels, folded and stacked neatly on a luxury wooden vanity below.
+3. A sleek glass plaque on the right with black professional typography.
+
+TEXT FOR GLASS PLAQUE:
+${fields.quality.toUpperCase()}
+HOTEL SUPPLY COLLECTION
+
+Details:
+Quality: ${fields.quality}
+Border Style: ${fields.style}
+Design: ${fields.design}
+Size: ${fields.size}
+Weight: ${fields.weight} gms per pc ${gsmStr}
+
+Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus background. Extremely realistic fabric texture.`;
+
+    let retries = 0;
+    while (retries < 5) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Image } }] }],
+              generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+            })
+          }
+        );
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        const data = await res.json();
+        const b64 = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+        if (!b64) throw new Error("No image returned");
+        const watermarked = await applyWatermark(b64);
+        setResultSrc(watermarked);
+        setLoading(false);
+        return;
+      } catch (e) {
+        retries++;
+        if (retries === 5) { setError("Generation failed. Check your API key or try again."); setLoading(false); return; }
+        await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
+      }
+    }
+  };
+
+  const download = () => {
+    const a = document.createElement("a"); a.href = resultSrc;
+    a.download = `KHT-${fields.quality.replace(/\s+/g,"-")}-presentation.png`; a.click();
+  };
+
+  const shareImg = () => {
+    if (navigator.share) {
+      fetch(resultSrc).then(r => r.blob()).then(blob => {
+        navigator.share({ files: [new File([blob], "terrytowel-presentation.png", { type: "image/png" })], title: fields.quality, text: "From terrytowel.in" });
+      });
+    } else {
+      setError("Sharing not supported in this browser — use Download instead.");
+    }
+  };
+
+  const saveKey = () => {
+    localStorage.setItem("kht_gemini_key", tempKey);
+    setApiKey(tempKey); setShowKeyModal(false);
+    if (base64Image) setTimeout(generate, 100);
+  };
+
+  const setField = (k, v) => setFields(f => ({ ...f, [k]: v }));
+
+  return (
+    <div>
+      {/* HEADER */}
+      <div className="sh">
+        <div>
+          <div className="st">🎨 Product Designer</div>
+          <div className="text-sm text-lt" style={{ marginTop: 2 }}>AI-powered hotel supply marketing asset creator · Powered by Gemini</div>
+        </div>
+        <button className="btn btn-out btn-sm" onClick={() => { setTempKey(apiKey); setShowKeyModal(true); }}>
+          <Settings size={13} /> {apiKey ? "API Key ✓" : "⚠️ Set API Key"}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
+
+        {/* ── LEFT: INPUTS ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* DROP ZONE */}
+          <div>
+            <label className="lbl">Sample Product Photo</label>
+            <div
+              onDragOver={e => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
+              onClick={() => fileRef.current?.click()}
+              style={{
+                border: `2px dashed ${dragging ? "var(--gold)" : "var(--border)"}`,
+                borderRadius: 16, padding: preview ? "16px" : "40px 24px",
+                textAlign: "center", cursor: "pointer",
+                background: dragging ? "var(--gold-pp)" : preview ? "var(--bg)" : "var(--white)",
+                transition: "all .2s"
+              }}
+            >
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+              {preview ? (
+                <div>
+                  <img src={preview} alt="preview" style={{ maxHeight: 220, borderRadius: 12, boxShadow: "var(--shadow-md)", marginBottom: 10, maxWidth: "100%", objectFit: "contain" }} />
+                  <div className="text-xs text-lt" style={{ color: "var(--gold)", fontWeight: 700 }}>🔄 Click to change photo</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 40, marginBottom: 10 }}>📸</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-dark)", marginBottom: 4 }}>Click or drag to upload sample</div>
+                  <div className="text-xs text-lt">JPG, PNG supported · max 10MB</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* SPEC FIELDS */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {[
+              ["Quality Name", "quality", "text"],
+              ["Border Style", "style", "text"],
+              ["Design / Style", "design", "text"],
+              ["Size (inches)", "size", "text"],
+              ["Weight (gms/pc)", "weight", "number"],
+            ].map(([label, key, type]) => (
+              <div key={key}>
+                <label className="lbl">{label}</label>
+                <input className="inp" type={type} value={fields[key]} onChange={e => setField(key, e.target.value)} />
+              </div>
+            ))}
+            <div>
+              <label className="lbl">Calculated GSM</label>
+              <div style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 800, fontSize: 15, color: gsm ? "var(--gold)" : "var(--text-light)", fontFamily: "Times New Roman, serif" }}>{gsm ? `${gsm} GSM` : "—"}</span>
+                <span style={{ fontSize: 9.5, color: "var(--text-light)", textAlign: "right", lineHeight: 1.4 }}>Rounded to<br />multiple of 5</span>
+              </div>
+            </div>
+          </div>
+
+          {/* GENERATE BUTTON */}
+          <button
+            onClick={generate}
+            disabled={loading}
+            style={{
+              width: "100%", padding: "16px", borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer",
+              background: loading ? "#888" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)",
+              color: "var(--navy)", fontWeight: 800, fontSize: 15, letterSpacing: ".03em",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              boxShadow: loading ? "none" : "0 4px 20px rgba(196,145,58,.35)", transition: "all .2s"
+            }}
+          >
+            {loading ? (
+              <>
+                <span style={{ display: "inline-block", width: 18, height: 18, border: "3px solid rgba(255,255,255,.3)", borderTop: "3px solid var(--navy)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                Generating with AI…
+              </>
+            ) : "✨ Generate Marketing Asset"}
+          </button>
+
+          {error && (
+            <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", color: "#DC2626", fontSize: 12, fontWeight: 600 }}>
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT: RESULT ── */}
+        <div style={{
+          background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20,
+          minHeight: 520, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24
+        }}>
+          {!resultSrc && !loading && (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 56, marginBottom: 12, opacity: .3 }}>🖼️</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: "var(--text-light)", marginBottom: 6 }}>Output Preview</div>
+              <div className="text-sm text-lt">Upload a photo and click Generate to create your hotel supply marketing asset</div>
+            </div>
+          )}
+          {loading && (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: 52, height: 52, border: "4px solid var(--border)", borderTop: "4px solid var(--gold)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>AI is rendering…</div>
+              <div className="text-sm text-lt">Gemini is creating your premium hotel supply visual.<br />This takes 30–60 seconds.</div>
+            </div>
+          )}
+          {resultSrc && !loading && (
+            <div style={{ width: "100%", textAlign: "center" }}>
+              <img src={resultSrc} alt="Generated" style={{ width: "100%", borderRadius: 14, boxShadow: "var(--shadow-lg)", marginBottom: 20 }} />
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn btn-out btn-full" onClick={download} style={{ flex: 1 }}>⬇️ Download High-Res</button>
+                <button className="btn btn-gold btn-full" onClick={shareImg} style={{ flex: 1 }}>📤 Share with Client</button>
+              </div>
+              <button className="btn btn-out btn-sm" style={{ marginTop: 10, width: "100%", color: "var(--text-light)" }} onClick={() => setResultSrc(null)}>
+                🔁 Generate New Version
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* API KEY MODAL */}
+      {showKeyModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="card" style={{ width: 460, boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>🔑 Gemini API Key</div>
+              <button className="btn btn-out btn-sm" onClick={() => setShowKeyModal(false)}><X size={14} /></button>
+            </div>
+            <div className="card" style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", padding: 12, marginBottom: 14, fontSize: 12, lineHeight: 1.7, color: "var(--text-mid)" }}>
+              Get your free API key at <strong>aistudio.google.com</strong> → Get API Key.<br />
+              The key is stored locally on your device only — never shared.
+            </div>
+            <label className="lbl">Paste your Gemini API Key</label>
+            <input className="inp" style={{ marginBottom: 14, fontFamily: "monospace", fontSize: 12 }}
+              type="password" placeholder="AIzaSy…"
+              value={tempKey} onChange={e => setTempKey(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveKey()}
+              autoFocus
+            />
+            <div className="flex gap3">
+              <button className="btn btn-gold btn-full" onClick={saveKey} disabled={!tempKey.trim()}>Save & Continue →</button>
+              <button className="btn btn-out" onClick={() => setShowKeyModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState("home");
   const [notif, setNotif] = useState(null);
@@ -2387,12 +2698,13 @@ export default function App() {
     { id: "home", icon: "🏠", label: "Dashboard" },
     { id: "dispatch", icon: "📦", label: "Dispatch", section: "OPERATIONS" },
     { id: "products", icon: "🏷️", label: "Products" },
+    { id: "designer", icon: "🎨", label: "Product Designer" },
     { id: "crm", icon: "👥", label: "CRM & Sales", section: "GROWTH" },
     { id: "marketing", icon: "📣", label: "Marketing" },
     { id: "documents", icon: "📂", label: "Documents", section: "STORAGE" },
   ];
 
-  const titles = { home: "Dashboard Overview", dispatch: "Dispatch Manager", products: "Products Database", crm: "CRM & Sales", marketing: "Marketing Studio", documents: "Document Store" };
+  const titles = { home: "Dashboard Overview", dispatch: "Dispatch Manager", products: "Products Database", designer: "Product Designer", crm: "CRM & Sales", marketing: "Marketing Studio", documents: "Document Store" };
 
   return (
     <>
@@ -2435,6 +2747,7 @@ export default function App() {
             {active === "home" && <HomeModule setActive={setActive} />}
             {active === "dispatch" && <DispatchModule showNotif={showNotif} />}
             {active === "products" && <ProductsModule />}
+            {active === "designer" && <ProductDesignerModule />}
             {active === "crm" && <CRMModule />}
             {active === "marketing" && <MarketingModule />}
             {active === "documents" && <DocumentsModule />}
