@@ -234,9 +234,9 @@ body, #root { font-family: 'DM Sans', sans-serif; background: #FDFAF4; height: 1
 
 /* ── PRINT ── */
 @media print {
-  .erp-shell,.print-overlay .print-topbar { display:none !important; }
-  .print-overlay { display:block !important; }
-  #doc-preview { box-shadow:none !important; margin:0 !important; }
+  body * { visibility: hidden !important; }
+  #doc-preview, #doc-preview * { visibility: visible !important; }
+  #doc-preview { position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important; box-shadow: none !important; }
 }
 `;
 
