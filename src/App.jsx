@@ -14,6 +14,27 @@ const DEFAULT_COURIERS = [
 ];
 const DEFAULT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbymS4iJvn2urnKLIyaTw49Xmo0Ltjb0k5_Q1hbNJeLyrfjkcuFMgC04PmJEbx-NY-8B/exec";
 const DEFAULT_PRODUCTS_DRIVE_URL = "https://script.google.com/macros/s/AKfycbz4cSEAqiENHZhkBDOJUiRoaXvmV7h7WY5Rilb_-hIUSLn3Of-I2pTk60voDP63k8Nf/exec";
+
+// Shared Anthropic API helper — reads key from localStorage
+const anthropicFetch = (prompt, systemPrompt = "") => {
+  const key = localStorage.getItem("kht_anthropic_key") || "";
+  return fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+};
+const getAnthropicKey = () => localStorage.getItem("kht_anthropic_key") || "";
 const SENDER = {
   name: "Kshirsagar Hometextiles",
   website: "www.terrytowel.in",
@@ -971,6 +992,12 @@ function DispatchModule({ showNotif }) {
             </div>
             <label className="lbl">Google Sheet Webhook URL</label>
             <input className="inp mb4" value={sheetWebhookUrl} onChange={e => setSheetWebhookUrl(e.target.value)} />
+            <label className="lbl">Claude API Key (for AI features)</label>
+            <input className="inp mb4" type="password" placeholder="sk-ant-…"
+              defaultValue={localStorage.getItem("kht_anthropic_key") || ""}
+              onChange={e => localStorage.setItem("kht_anthropic_key", e.target.value)}
+            />
+            <div className="text-xs text-lt mb3" style={{ marginTop: -12 }}>Used in CRM pitches, Marketing Studio. Get your key at console.anthropic.com</div>
             <div className="flex gap2" style={{ justifyContent: "flex-end" }}>
               <button className="btn btn-out" onClick={() => setShowSettings(false)}>Cancel</button>
               <button className="btn btn-gold" onClick={() => { setShowSettings(false); showNotif("Settings saved"); }}>Save</button>
@@ -1785,15 +1812,13 @@ function CRMModule() {
   const [tab, setTab] = useState("pitch");
 
   const generate = async () => {
+    if (!getAnthropicKey()) { setAiMsg("⚠️ No API key set. Go to Settings → Claude API Key."); return; }
     setLoading(true); setAiMsg("");
     const prompt = pitchType === "email"
-      ? `Write a professional B2B sales email from Kshirsagar Hometextiles (premium textile manufacturer, Ichalkaranji, Maharashtra) to ${sel.name} at ${sel.biz}. Product: ${product}. Be warm, professional, mention quality, MOQ and invite them to request a sample. 4 paragraphs. Include subject line at the top.`
+      ? `Write a professional B2B sales email from Kshirsagar Hometextiles (premium textile manufacturer, Solapur, Maharashtra) to ${sel.name} at ${sel.biz}. Product: ${product}. Be warm, professional, mention quality, MOQ and invite them to request a sample. 4 paragraphs. Include subject line at the top.`
       : `Write a short friendly WhatsApp message from Kshirsagar Hometextiles to ${sel.name} (${sel.biz}) pitching ${product}. Conversational, key benefits, special offer, CTA. 150 words max. Use emojis naturally.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
-      });
+      const res = await anthropicFetch(prompt);
       const data = await res.json();
       setAiMsg(data.content?.[0]?.text || "Could not generate.");
     } catch { setAiMsg("Connection error. Please retry."); }
@@ -1879,23 +1904,31 @@ function MarketingModule() {
   const [platform, setPlatform] = useState("email");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [campaign, setCampaign] = useState("");
+  const [audience, setAudience] = useState("All Customers");
+  const [offer, setOffer] = useState("");
   const platforms = [{ id: "email", icon: "📧", name: "Email Newsletter" }, { id: "whatsapp", icon: "💚", name: "WhatsApp Status" }, { id: "instagram", icon: "📸", name: "Instagram Post" }];
 
   const generate = async () => {
+    if (!getAnthropicKey()) { setContent("⚠️ No API key set. Go to Settings → Claude API Key."); return; }
     setLoading(true); setContent("");
+    const campaignStr = campaign || "Premium Towel Collection";
+    const offerStr = offer ? `Special offer: ${offer}.` : "";
+    const audienceStr = audience;
     const prompts = {
-      email: `Write a B2B email newsletter for Kshirsagar Hometextiles announcing their Premium Bath Towel collection. 450 GSM, soft cotton, 12 colors, trade price ₹280. Include subject line, greeting, bullet points, CTA.`,
-      whatsapp: `Write 3 WhatsApp status updates for Kshirsagar Hometextiles promoting Premium Bath Towels. Each max 200 chars, include emojis, strong hook. Number them 1, 2, 3.`,
-      instagram: `Write an Instagram caption for Kshirsagar Hometextiles new bath towel collection. Hook, benefits, CTA, 20 relevant hashtags.`,
+      email: `Write a professional B2B email newsletter for Kshirsagar Hometextiles (terrytowel.in), a premium terry towel manufacturer from Solapur, Maharashtra.
+Campaign: "${campaignStr}". Target audience: ${audienceStr}. ${offerStr}
+Format: Subject line, warm greeting, 3-4 bullet points on product benefits, clear CTA to request samples. Professional yet friendly tone.`,
+      whatsapp: `Write 3 WhatsApp broadcast messages for Kshirsagar Hometextiles promoting: "${campaignStr}". Target: ${audienceStr}. ${offerStr}
+Each message max 200 characters, strong hook, emojis, numbered 1, 2, 3. Include terrytowel.in in one of them.`,
+      instagram: `Write an Instagram caption for Kshirsagar Hometextiles for: "${campaignStr}". ${offerStr}
+Engaging hook, key benefits, CTA to DM or visit terrytowel.in, 20 relevant hashtags for textile/hotel supply industry.`,
     };
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompts[platform] }] })
-      });
+      const res = await anthropicFetch(prompts[platform]);
       const data = await res.json();
-      setContent(data.content?.[0]?.text || "");
-    } catch { setContent("Failed. Please retry."); }
+      setContent(data.content?.[0]?.text || "Could not generate. Please retry.");
+    } catch { setContent("Connection error. Please retry."); }
     setLoading(false);
   };
 
@@ -1913,9 +1946,9 @@ function MarketingModule() {
       <div className="g2" style={{ gap: 20 }}>
         <div className="card">
           <div className="card-title">Campaign Setup</div>
-          <div className="mb3 mt3"><label className="lbl">Subject / Campaign Name</label><input className="inp" placeholder="e.g. New Collection Launch — Premium Bath Towels" /></div>
-          <div className="mb3"><label className="lbl">Target Audience</label><select className="sel"><option>All Customers</option><option>Hot Leads</option><option>Wholesale Buyers</option></select></div>
-          <div className="mb4"><label className="lbl">Special Offer (optional)</label><input className="inp" placeholder="e.g. 10% off on 100+ pcs" /></div>
+          <div className="mb3 mt3"><label className="lbl">Subject / Campaign Name</label><input className="inp" placeholder="e.g. New Collection Launch — Premium Bath Towels" value={campaign} onChange={e => setCampaign(e.target.value)} /></div>
+          <div className="mb3"><label className="lbl">Target Audience</label><select className="sel" value={audience} onChange={e => setAudience(e.target.value)}><option>All Customers</option><option>Hot Leads</option><option>Wholesale Buyers</option><option>Hotel Buyers</option><option>Export Clients</option></select></div>
+          <div className="mb4"><label className="lbl">Special Offer (optional)</label><input className="inp" placeholder="e.g. 10% off on 100+ pcs" value={offer} onChange={e => setOffer(e.target.value)} /></div>
           <button className="btn btn-gold btn-full" onClick={generate} disabled={loading}>✨ {loading ? "Generating…" : `Generate ${platforms.find(p => p.id === platform)?.name}`}</button>
         </div>
         <div className="card">
