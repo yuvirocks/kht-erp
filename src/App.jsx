@@ -2212,7 +2212,7 @@ Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus backgrou
     while (retries < 5) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2222,17 +2222,21 @@ Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus backgrou
             })
           }
         );
-        if (!res.ok) throw new Error(`API ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const msg = errBody?.error?.message || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
         const data = await res.json();
         const b64 = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-        if (!b64) throw new Error("No image returned");
+        if (!b64) throw new Error("No image returned — model may not support image output");
         const watermarked = await applyWatermark(b64);
         setResultSrc(watermarked);
         setLoading(false);
         return;
       } catch (e) {
         retries++;
-        if (retries === 5) { setError("Generation failed. Check your API key or try again."); setLoading(false); return; }
+        if (retries === 5) { setError(`Generation failed: ${e.message}`); setLoading(false); return; }
         await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
       }
     }
