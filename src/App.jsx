@@ -2115,42 +2115,211 @@ function LoginScreen({ onLogin }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PRODUCT DESIGNER MODULE  (Claude Vision → Marketing Catalogue)
+   PRODUCT DESIGNER MODULE  (Claude Vision → Brochure / Quotation)
 ═══════════════════════════════════════════════════════════════ */
 const EMPTY_PRODUCT = () => ({
   id: Date.now() + Math.random(),
-  base64Image: null, mimeType: "image/jpeg", preview: null, result: null, loading: false,
-  fields: { quality: "", style: "Jacquard Border", design: "Classic Dobby", size: "14 x 21 inches", weight: "80" }
+  photos: [],        // [{base64, mimeType, preview, fromDrive?}]
+  result: null,
+  loading: false,
+  fields: { quality: "", style: "Jacquard Border", design: "Classic Dobby", size: "14 x 21 inches", weight: "80", price: "" },
+  description: ""
 });
 
-function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate }) {
-  const fileRef = useRef();
-  const gsm = (() => {
-    const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
-    const w = parseFloat(p.fields.weight);
-    if (!dims || !w) return null;
-    return Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5;
-  })();
-  const handleFile = (file) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => onChange(idx, { base64Image: e.target.result.split(",")[1], mimeType: file.type, preview: e.target.result });
-    reader.readAsDataURL(file);
+const calcGsmUtil = (size, weight) => {
+  const dims = size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
+  const w = parseFloat(weight);
+  if (!dims || !w) return null;
+  return Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5;
+};
+
+/* ── Drive Image Picker Modal ── */
+function DrivePickerModal({ driveUrl, existingPhotos, onAdd, onClose }) {
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [filter, setFilter] = useState("All");
+  const [cats, setCats] = useState([]);
+
+  useEffect(() => {
+    if (!driveUrl) { setError("Products Drive URL not configured. Go to Products module to set it up."); setLoading(false); return; }
+    fetch(`${driveUrl}?action=list&t=${Date.now()}`)
+      .then(r => r.json())
+      .then(data => {
+        const imgs = data.files || data || [];
+        setImages(imgs);
+        const uniqueCats = [...new Set(imgs.map(i => i.category || i.cat || "Uncategorised").filter(Boolean))];
+        setCats(uniqueCats);
+        setLoading(false);
+      })
+      .catch(() => { setError("Could not load from Drive. Check your Products Drive URL."); setLoading(false); });
+  }, []);
+
+  const existingPreviews = new Set(existingPhotos.map(p => p.driveId).filter(Boolean));
+  const filtered = filter === "All" ? images : images.filter(i => (i.category || i.cat || "Uncategorised") === filter);
+
+  const toggle = (img) => {
+    const id = img.id;
+    if (existingPreviews.has(id)) return;
+    setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
+
+  const confirm = async () => {
+    const toAdd = images.filter(i => selected.has(i.id));
+    const newPhotos = [];
+    for (const img of toAdd) {
+      const url = img.url || `https://lh3.googleusercontent.com/d/${img.id}`;
+      try {
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        const base64 = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result.split(",")[1]); r.readAsDataURL(blob); });
+        newPhotos.push({ base64, mimeType: blob.type || "image/jpeg", preview: url, fromDrive: true, driveId: img.id, driveName: img.name });
+      } catch {
+        newPhotos.push({ base64: null, mimeType: "image/jpeg", preview: url, fromDrive: true, driveId: img.id, driveName: img.name });
+      }
+    }
+    onAdd(newPhotos);
+    onClose();
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "var(--white)", borderRadius: 20, width: "100%", maxWidth: 720, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,.35)" }}>
+        {/* MODAL HEADER */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 700 }}>📁 Select from Products Database</div>
+            <div style={{ fontSize: 11, color: "var(--text-light)", marginTop: 2 }}>{selected.size} selected · click to toggle</div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {selected.size > 0 && <button className="btn btn-gold btn-sm" onClick={confirm}>Add {selected.size} Photo{selected.size > 1 ? "s" : ""} →</button>}
+            <button className="btn btn-out btn-sm" onClick={onClose}><X size={14} /></button>
+          </div>
+        </div>
+
+        {/* CATEGORY FILTER */}
+        {cats.length > 0 && (
+          <div style={{ padding: "10px 24px", borderBottom: "1px solid var(--border)", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["All", ...cats].map(c => (
+              <button key={c} onClick={() => setFilter(c)} style={{ padding: "4px 12px", borderRadius: 20, border: "1.5px solid", fontSize: 11, fontWeight: 600, cursor: "pointer", borderColor: filter === c ? "var(--gold)" : "var(--border)", background: filter === c ? "var(--gold-pp)" : "transparent", color: filter === c ? "var(--gold)" : "var(--text-mid)" }}>{c}</button>
+            ))}
+          </div>
+        )}
+
+        {/* IMAGE GRID */}
+        <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
+          {loading && <div style={{ textAlign: "center", padding: 60, color: "var(--text-light)" }}><div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>Loading from Drive…</div>}
+          {error && <div style={{ textAlign: "center", padding: 40, color: "#DC2626", fontSize: 13 }}>{error}</div>}
+          {!loading && !error && filtered.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "var(--text-light)" }}>No images found in this category.</div>}
+          {!loading && !error && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+              {filtered.map(img => {
+                const id = img.id;
+                const url = img.url || img.thumb || `https://lh3.googleusercontent.com/d/${id}`;
+                const isSel = selected.has(id);
+                const isExisting = existingPreviews.has(id);
+                return (
+                  <div key={id} onClick={() => toggle(img)} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1", cursor: isExisting ? "default" : "pointer", border: isSel ? "3px solid var(--gold)" : isExisting ? "2px solid #22c55e" : "2px solid transparent", boxShadow: isSel ? "0 0 0 2px rgba(196,145,58,.3)" : "var(--shadow-sm)", transition: "all .15s", opacity: isExisting ? .6 : 1 }}>
+                    <img src={url} alt={img.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.background="#eee"; e.target.style.display="none"; }} />
+                    {isSel && <div style={{ position: "absolute", inset: 0, background: "rgba(196,145,58,.25)", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ background: "var(--gold)", color: "var(--navy)", width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800 }}>✓</div></div>}
+                    {isExisting && <div style={{ position: "absolute", bottom: 4, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "#22c55e", fontWeight: 700, background: "rgba(255,255,255,.85)" }}>Already added</div>}
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,.7))", padding: "16px 6px 5px", fontSize: 9, color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{img.name}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {selected.size > 0 && (
+          <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button className="btn btn-out btn-sm" onClick={() => setSelected(new Set())}>Clear Selection</button>
+            <button className="btn btn-gold" onClick={confirm}>Add {selected.size} Photo{selected.size > 1 ? "s" : ""} to Product →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Single product input slot ── */
+function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate, driveUrl }) {
+  const multiRef = useRef();
+  const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
+
+  const handleFiles = (files) => {
+    const arr = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 6 - p.photos.length);
+    arr.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        onChange(idx, { photos: [...p.photos, { base64: e.target.result.split(",")[1], mimeType: file.type, preview: e.target.result }] });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (pi) => onChange(idx, { photos: p.photos.filter((_, i) => i !== pi) });
   const setField = (k, v) => onChange(idx, { fields: { ...p.fields, [k]: v } });
+  const hasPhotos = p.photos.length > 0;
+
   return (
     <div style={{ background: "var(--white)", border: p.result ? "2px solid var(--gold)" : "1.5px solid var(--border)", borderRadius: 16, overflow: "hidden", boxShadow: p.result ? "0 4px 20px rgba(196,145,58,.15)" : "var(--shadow-sm)", transition: "all .2s" }}>
+
+      {showDrivePicker && <DrivePickerModal driveUrl={driveUrl} existingPhotos={p.photos} onAdd={newPhotos => onChange(idx, { photos: [...p.photos, ...newPhotos].slice(0, 6) })} onClose={() => setShowDrivePicker(false)} />}
+
+      {/* SLOT HEADER */}
       <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-mid)" }}>
-          {p.result ? "✅ " : ""} Product {idx + 1}{p.fields.quality ? ` · ${p.fields.quality}` : ""}
-        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-mid)" }}>{p.result ? "✅ " : ""}Product {idx + 1}{p.fields.quality ? ` · ${p.fields.quality}` : ""}</div>
         <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", fontSize: 16, lineHeight: 1, padding: "2px 6px", borderRadius: 4 }}>✕</button>
       </div>
-      <div style={{ padding: 16, display: "grid", gridTemplateColumns: "150px 1fr", gap: 14, alignItems: "start" }}>
-        <div onClick={() => fileRef.current?.click()} style={{ border: `2px dashed ${p.preview ? "var(--gold)" : "var(--border)"}`, borderRadius: 12, padding: p.preview ? 6 : "20px 8px", textAlign: "center", cursor: "pointer", background: "var(--bg)", minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
-          {p.preview ? <img src={p.preview} alt="preview" style={{ width: "100%", borderRadius: 8, objectFit: "cover", maxHeight: 130 }} /> : <div style={{ fontSize: 11, color: "var(--text-light)", lineHeight: 1.8 }}><div style={{ fontSize: 26 }}>📸</div>Click to upload</div>}
+
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* MULTI-PHOTO UPLOAD */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <label className="lbl" style={{ fontSize: 10, margin: 0 }}>Photos <span style={{ color: "var(--text-light)", fontWeight: 400 }}>(up to 6 · first = main)</span></label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setShowDrivePicker(true)} className="btn btn-gold btn-sm" style={{ fontSize: 10, padding: "4px 10px" }} disabled={p.photos.length >= 6}>📁 From Drive</button>
+              <button onClick={() => multiRef.current?.click()} className="btn btn-out btn-sm" style={{ fontSize: 10, padding: "4px 10px" }} disabled={p.photos.length >= 6}>📸 Upload</button>
+            </div>
+          </div>
+          <input ref={multiRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
+
+          {!hasPhotos ? (
+            <div style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: "20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div onClick={() => setShowDrivePicker(true)} style={{ background: "var(--gold-pp)", border: "1.5px solid var(--gold)", borderRadius: 10, padding: "16px 10px", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>📁</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>From Products<br />Database</div>
+              </div>
+              <div onClick={() => multiRef.current?.click()} style={{ background: "var(--bg)", border: "1.5px dashed var(--border)", borderRadius: 10, padding: "16px 10px", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>📸</div>
+                <div style={{ fontSize: 10, color: "var(--text-light)" }}>Upload from<br />your device</div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {p.photos.map((ph, pi) => (
+                <div key={pi} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: pi === 0 ? "2px solid var(--gold)" : "1px solid var(--border)", aspectRatio: "1" }}>
+                  <img src={ph.preview} alt={`photo ${pi+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+                  {pi === 0 && <div style={{ position: "absolute", top: 4, left: 4, background: "var(--gold)", color: "var(--navy)", fontSize: 8, fontWeight: 800, padding: "2px 5px", borderRadius: 4 }}>Main</div>}
+                  {ph.fromDrive && <div style={{ position: "absolute", bottom: 4, left: 4, background: "rgba(13,27,42,.7)", color: "#C4913A", fontSize: 7, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>Drive</div>}
+                  <button onClick={() => removePhoto(pi)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,.6)", border: "none", color: "#fff", fontSize: 12, width: 20, height: 20, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                </div>
+              ))}
+              {p.photos.length < 6 && (
+                <div style={{ border: "1.5px dashed var(--border)", borderRadius: 10, display: "flex", flexDirection: "column", gap: 4, alignItems: "center", justifyContent: "center", cursor: "pointer", aspectRatio: "1", background: "var(--bg)" }}>
+                  <div onClick={() => setShowDrivePicker(true)} style={{ fontSize: 9, color: "var(--gold)", fontWeight: 700, textAlign: "center", padding: "6px 4px", width: "100%", borderBottom: "1px solid var(--border)" }}>📁 Drive</div>
+                  <div onClick={() => multiRef.current?.click()} style={{ fontSize: 9, color: "var(--text-light)", textAlign: "center", padding: "6px 4px", width: "100%" }}>📸 Upload</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* SPEC FIELDS */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {[["Quality Name","quality","text"],["Border Style","style","text"],["Design","design","text"],["Size (inches)","size","text"],["Weight (g/pc)","weight","number"]].map(([label,key,type]) => (
             <div key={key}>
@@ -2159,84 +2328,184 @@ function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate }) {
             </div>
           ))}
           <div>
-            <label className="lbl" style={{ fontSize: 10 }}>GSM</label>
+            <label className="lbl" style={{ fontSize: 10 }}>Calculated GSM</label>
             <div style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontWeight: 800, fontSize: 13, color: gsm ? "var(--gold)" : "var(--text-light)", fontFamily: "Times New Roman, serif" }}>{gsm ? `${gsm} GSM` : "—"}</div>
           </div>
         </div>
-      </div>
-      <div style={{ padding: "0 16px 16px" }}>
-        <button onClick={() => onGenerate(idx)} disabled={p.loading || !p.base64Image}
-          style={{ width: "100%", padding: "10px", borderRadius: 10, border: p.result ? "1.5px solid var(--gold)" : "none", cursor: (p.loading || !p.base64Image) ? "not-allowed" : "pointer", background: p.result ? "var(--gold-pp)" : p.loading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)", color: p.result ? "var(--gold)" : "var(--navy)", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          {p.loading ? (<><span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTop: "2px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Analysing with Claude…</>) : p.result ? "✅ Card Ready · Re-generate" : !p.base64Image ? "📸 Upload photo first" : "✨ Generate Card"}
+
+        {/* PRICE */}
+        <div>
+          <label className="lbl" style={{ fontSize: 10 }}>Price <span style={{ color: "var(--text-light)", fontWeight: 400 }}>(optional · shown on brochure if filled)</span></label>
+          <input className="inp" style={{ padding: "7px 10px", fontSize: 12 }} type="text" value={p.fields.price} onChange={e => setField("price", e.target.value)} placeholder="e.g. ₹85/pc · USD 1.20/pc · ₹420/dozen" />
+        </div>
+
+        {/* DESCRIPTION */}
+        <div>
+          <label className="lbl" style={{ fontSize: 10 }}>Product Details <span style={{ color: "var(--text-light)", fontWeight: 400 }}>(helps AI write better copy)</span></label>
+          <textarea className="inp" rows={3} style={{ resize: "vertical", fontSize: 12, lineHeight: 1.6, fontFamily: "inherit" }} value={p.description} onChange={e => onChange(idx, { description: e.target.value })} placeholder="Thread count, colour options, MOQ, certifications, special finishing, export markets, hotels already supplied, unique weave, packaging details…" />
+        </div>
+
+        {/* GENERATE BTN */}
+        <button onClick={() => onGenerate(idx)} disabled={p.loading || !hasPhotos} style={{ width: "100%", padding: "10px", borderRadius: 10, border: p.result ? "1.5px solid var(--gold)" : "none", cursor: (p.loading || !hasPhotos) ? "not-allowed" : "pointer", background: p.result ? "var(--gold-pp)" : p.loading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)", color: p.result ? "var(--gold)" : "var(--navy)", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          {p.loading ? (<><span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTop: "2px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Analysing…</>) : p.result ? "✅ Ready · Re-generate" : !hasPhotos ? "📸 Add photos first" : "✨ Generate Brochure Card"}
         </button>
       </div>
     </div>
   );
 }
 
-function MarketingCard({ p, cardRef }) {
-  const gsm = (() => {
-    const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
-    const w = parseFloat(p.fields.weight);
-    if (!dims || !w) return null;
-    return Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5;
-  })();
+/* ── Brochure Card ── */
+function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
+  const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
   const r = p.result;
   if (!r) return null;
-  return (
-    <div ref={cardRef} data-product-card="true" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(13,27,42,.12)", border: "1px solid #E3DDD4", fontFamily: "'Plus Jakarta Sans', sans-serif", pageBreakInside: "avoid", marginBottom: 24 }}>
-      <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #1a2f45 100%)", padding: "24px 28px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, marginBottom: 5, textTransform: "uppercase" }}>Kshirsagar Hometextiles · Since 1947</div>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1.2, marginBottom: 6 }}>{r.headline}</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", fontStyle: "italic" }}>"{r.tagline}"</div>
-        </div>
-        {p.preview && <img src={p.preview} alt="product" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 10, border: "2px solid rgba(196,145,58,.4)", flexShrink: 0 }} />}
+  const photos = p.photos;
+  const main = photos[0];
+  const rest = photos.slice(1, 5);
+  const showClient = !!(clientName || clientCompany);
+  const showPrice = !!p.fields.price;
+
+  const renderGallery = () => {
+    if (photos.length === 1) return <img src={main.preview} alt="product" style={{ width: "100%", height: 240, objectFit: "cover", display: "block" }} crossOrigin="anonymous" />;
+    if (photos.length === 2) return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+        {photos.map((ph, i) => <img key={i} src={ph.preview} alt={`view ${i+1}`} style={{ width: "100%", height: 190, objectFit: "cover" }} crossOrigin="anonymous" />)}
       </div>
-      <div style={{ padding: "22px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    );
+    if (photos.length === 3) return (
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3, height: 240 }}>
+        <img src={main.preview} alt="main" style={{ gridRow: "1/3", width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+        {rest.slice(0,2).map((ph, i) => <img key={i} src={ph.preview} alt={`view ${i+2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />)}
+      </div>
+    );
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 3, height: 260 }}>
+        <img src={main.preview} alt="main" style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+        <div style={{ display: "grid", gridTemplateRows: `repeat(${Math.min(rest.length, 4)}, 1fr)`, gap: 3 }}>
+          {rest.slice(0,4).map((ph, i) => (
+            <div key={i} style={{ position: "relative", overflow: "hidden" }}>
+              <img src={ph.preview} alt={`view ${i+2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+              {i === 3 && rest.length > 4 && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>+{rest.length - 4}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div data-product-card="true" style={{ background: "#fff", overflow: "hidden", fontFamily: "'Plus Jakarta Sans', sans-serif", pageBreakInside: "avoid" }}>
+
+      {/* TO / CLIENT BLOCK — only if filled */}
+      {showClient && (
+        <div style={{ background: "#F9F6F0", borderBottom: "2px solid #C4913A", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Product Overview</div>
-            <p style={{ fontSize: 12, color: "#3a3a3a", lineHeight: 1.7, margin: 0 }}>{r.description}</p>
+            <div style={{ fontSize: 8.5, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>To</div>
+            {clientName && <div style={{ fontSize: 14, fontWeight: 800, color: "#0D1B2A" }}>{clientName}</div>}
+            {clientCompany && <div style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{clientCompany}</div>}
           </div>
-          <div style={{ background: "#F4F1EC", borderLeft: "3px solid #C4913A", borderRadius: "0 8px 8px 0", padding: "10px 14px" }}>
-            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Fabric Analysis</div>
-            <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>{r.fabricObservation}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Key Advantages</div>
-            {r.usp?.map((u, i) => (
-              <div key={i} style={{ display: "flex", gap: 7, fontSize: 11, color: "#333", marginBottom: 5 }}>
-                <span style={{ color: "#C4913A", fontWeight: 800, flexShrink: 0 }}>✓</span><span>{u}</span>
-              </div>
-            ))}
+          <div style={{ textAlign: "right" }}>
+            {quoteRef && <div style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Ref: <strong style={{ color: "#0D1B2A" }}>{quoteRef}</strong></div>}
+            <div style={{ fontSize: 11, color: "#888" }}>Date: <strong style={{ color: "#0D1B2A" }}>{quoteDate || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong></div>
           </div>
         </div>
+      )}
+
+      {/* PHOTO GALLERY */}
+      <div style={{ overflow: "hidden" }}>{renderGallery()}</div>
+
+      {/* HEADER BAND */}
+      <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #162536 100%)", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 8, letterSpacing: ".22em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Kshirsagar Hometextiles · Est. 1947 · Solapur, India</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1.15, marginBottom: 4 }}>{r.headline}</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,.55)", fontStyle: "italic" }}>"{r.tagline}"</div>
+        </div>
+        <div style={{ flexShrink: 0, textAlign: "right" }}>
+          <div style={{ background: "#C4913A", color: "#0D1B2A", padding: "5px 13px", borderRadius: 20, fontSize: 10, fontWeight: 800, marginBottom: 5, display: "inline-block" }}>{r.targetSegment}</div>
+          {showPrice && (
+            <div style={{ background: "rgba(255,255,255,.12)", border: "1px solid rgba(196,145,58,.5)", borderRadius: 10, padding: "6px 14px", textAlign: "center", marginTop: 4 }}>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 2 }}>Price</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#C4913A", fontFamily: "Times New Roman, serif" }}>{p.fields.price}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* BODY */}
+      <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 22 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Specifications</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-              {[["Quality",p.fields.quality],["Border",p.fields.style],["Design",p.fields.design],["Size",p.fields.size],["Weight",`${p.fields.weight} gms/pc`],["GSM",gsm ? `${gsm} GSM` : "—"]].map(([k,v],i) => (
-                <tr key={k} style={{ background: i%2===0 ? "#FAFAF9" : "#fff" }}>
-                  <td style={{ padding: "6px 8px", color: "#888", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "40%" }}>{k}</td>
-                  <td style={{ padding: "6px 8px", color: "#222", fontWeight: 700, borderBottom: "1px solid #F0EDE8", fontFamily: "Times New Roman, serif" }}>{v}</td>
+            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase", borderBottom: "1px solid #EDE9E1", paddingBottom: 4 }}>Product Overview</div>
+            <p style={{ fontSize: 12, color: "#2a2a2a", lineHeight: 1.75, margin: 0 }}>{r.description}</p>
+          </div>
+          {r.fabricObservation && (
+            <div style={{ background: "linear-gradient(135deg, #F9F6F0, #F4F1EC)", border: "1px solid #E3DDD4", borderLeft: "4px solid #C4913A", borderRadius: "0 10px 10px 0", padding: "10px 14px" }}>
+              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Fabric Analysis</div>
+              <div style={{ fontSize: 11, color: "#444", lineHeight: 1.65, fontStyle: "italic" }}>{r.fabricObservation}</div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", borderBottom: "1px solid #EDE9E1", paddingBottom: 4 }}>Key Advantages</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 10px" }}>
+              {r.usp?.map((u, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, fontSize: 11, color: "#333", alignItems: "flex-start" }}>
+                  <span style={{ color: "#C4913A", fontWeight: 800, fontSize: 11, flexShrink: 0, marginTop: 1 }}>✓</span>
+                  <span style={{ lineHeight: 1.5 }}>{u}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 7, textTransform: "uppercase", borderBottom: "1px solid #EDE9E1", paddingBottom: 4 }}>Specifications</div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              {[
+                ["Quality", p.fields.quality],
+                ["Border Style", p.fields.style],
+                ["Design", p.fields.design],
+                ["Size", p.fields.size],
+                ["Weight", `${p.fields.weight} gms / pc`],
+                ["GSM", gsm ? `${gsm} GSM` : "—"],
+                ...(showPrice ? [["Price", p.fields.price]] : []),
+              ].map(([k, v], i) => (
+                <tr key={k} style={{ background: i % 2 === 0 ? "#FAFAF8" : "#fff" }}>
+                  <td style={{ padding: "6px 8px", color: "#888", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "44%", fontSize: 10.5 }}>{k}</td>
+                  <td style={{ padding: "6px 8px", color: k === "Price" ? "#C4913A" : "#111", fontWeight: k === "Price" ? 800 : 700, borderBottom: "1px solid #F0EDE8", fontFamily: "Times New Roman, serif", fontSize: k === "Price" ? 13 : 11.5 }}>{v}</td>
                 </tr>
               ))}
             </table>
           </div>
-          <div style={{ background: "#0D1B2A", borderRadius: 10, padding: "10px 14px" }}>
-            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 3, textTransform: "uppercase" }}>Target Segment</div>
-            <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{r.targetSegment}</div>
-          </div>
-          <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "10px 14px" }}>
-            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 3, textTransform: "uppercase" }}>Care Instructions</div>
-            <div style={{ fontSize: 11, color: "#555" }}>{r.careInstructions}</div>
+          {r.careInstructions && (
+            <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "10px 14px", border: "1px solid #E3DDD4" }}>
+              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Care Instructions</div>
+              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.6 }}>{r.careInstructions}</div>
+            </div>
+          )}
+          {r.packagingNote && (
+            <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "10px 14px", border: "1px solid #E3DDD4" }}>
+              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Packaging & MOQ</div>
+              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.6 }}>{r.packagingNote}</div>
+            </div>
+          )}
+          <div style={{ background: "#0D1B2A", borderRadius: 10, padding: "12px 14px" }}>
+            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Contact Us</div>
+            <div style={{ fontSize: 10.5, color: "#fff", fontWeight: 600, marginBottom: 2 }}>Kshirsagar Hometextiles</div>
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.5)", lineHeight: 1.6 }}>Nath Pride, Near Civil Hospital, Civil Chowk, Solapur — 413003</div>
+            <div style={{ marginTop: 6, display: "flex", gap: 12 }}>
+              <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>📞 +91 98225 49824</div>
+              <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>🌐 terrytowel.in</div>
+            </div>
           </div>
         </div>
       </div>
-      <div style={{ background: "#F4F1EC", borderTop: "1px solid #E3DDD4", padding: "12px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 10, color: "#888" }}><strong style={{ color: "#0D1B2A" }}>Kshirsagar Hometextiles</strong> · Solapur, Maharashtra · +91 98225 49824</div>
-        <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 700 }}>terrytowel.in</div>
+
+      {/* FOOTER */}
+      <div style={{ background: "#C4913A", padding: "9px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 9, color: "#0D1B2A", fontWeight: 700, letterSpacing: ".04em" }}>GST: 27ANLPK9383J1Z8 · info@kshirsagar.com</div>
+        <div style={{ fontSize: 9.5, color: "#0D1B2A", fontWeight: 800, letterSpacing: ".1em" }}>TERRYTOWEL.IN</div>
       </div>
     </div>
   );
@@ -2247,13 +2516,26 @@ function ProductDesignerModule() {
   const [globalLoading, setGlobalLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState({});
   const [toast, setToast] = useState(null);
-  const catalogueRef = useRef();
+  // Quotation / brochure header fields
+  const [clientName, setClientName] = useState("");
+  const [clientCompany, setClientCompany] = useState("");
+  const [quoteRef, setQuoteRef] = useState("");
+  const [quoteDate, setQuoteDate] = useState("");
   const driveUrl = localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL;
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
 
   const updateProduct = (idx, patch) => {
-    setProducts(prev => prev.map((p, i) => i === idx ? { ...p, ...patch, fields: patch.fields !== undefined ? patch.fields : p.fields } : p));
+    setProducts(prev => prev.map((p, i) => {
+      if (i !== idx) return p;
+      const u = { ...p };
+      if (patch.photos !== undefined) u.photos = patch.photos;
+      if (patch.result !== undefined) u.result = patch.result;
+      if (patch.loading !== undefined) u.loading = patch.loading;
+      if (patch.description !== undefined) u.description = patch.description;
+      if (patch.fields !== undefined) u.fields = patch.fields;
+      return u;
+    }));
   };
 
   const removeProduct = (idx) => {
@@ -2263,26 +2545,24 @@ function ProductDesignerModule() {
 
   const generateOne = async (idx) => {
     const p = products[idx];
-    if (!p.base64Image) return;
+    if (!p.photos.length) return;
     const key = getAnthropicKey();
-    if (!key) { showToast("⚠️ Claude API key not set. Go to Dispatch → ⚙️ Settings."); return; }
+    if (!key) { showToast("⚠️ Claude API key not set — go to Dispatch → ⚙️ Settings."); return; }
     updateProduct(idx, { loading: true, result: null });
-    const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
-    const w = parseFloat(p.fields.weight);
-    const gsm = (dims && w) ? Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5 : null;
-    const systemPrompt = `You are a luxury hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), a premium Indian manufacturer since 1947. Analyse the product photo and specs, then return ONLY valid JSON (no markdown, no backticks):
-{"tagline":"6-8 word luxury tagline","headline":"3-5 word premium product headline","description":"Two sentence premium marketing description for hotel procurement managers","usp":["USP 1","USP 2","USP 3","USP 4"],"fabricObservation":"One sentence about fabric quality/texture from the photo","targetSegment":"e.g. 4-5 Star Hotels, Luxury Resorts","careInstructions":"Brief care instructions for hotel laundry","whatsappLine":"Punchy WhatsApp line for hotel buyer under 20 words"}`;
-    const userPrompt = `Quality: ${p.fields.quality}\nBorder: ${p.fields.style}\nDesign: ${p.fields.design}\nSize: ${p.fields.size}\nWeight: ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}\nAnalyse this product photo and generate marketing card content.`;
+    const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
+    const systemPrompt = `You are a luxury B2B hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), premium Indian exporter since 1947, Arch of Europe Gold Star Award winners. Create professional brochure copy. Return ONLY valid JSON (no markdown, no backticks):
+{"tagline":"6-8 word luxury tagline","headline":"3-5 word premium headline","description":"Three-sentence premium description for hotel procurement directors","usp":["USP1","USP2","USP3","USP4"],"fabricObservation":"Two sentences on fabric quality, weave, border, texture from photos","targetSegment":"Specific hospitality segment","careInstructions":"Hotel laundry care instructions","packagingNote":"Packaging & MOQ details","whatsappLine":"Punchy WhatsApp line for hotel buyer under 20 words"}`;
+    const imageContent = p.photos.filter(ph => ph.base64).slice(0, 4).map(ph => ({ type: "image", source: { type: "base64", media_type: ph.mimeType, data: ph.base64 } }));
+    const userPrompt = `Quality: ${p.fields.quality}\nBorder: ${p.fields.style}\nDesign: ${p.fields.design}\nSize: ${p.fields.size}\nWeight: ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}${p.fields.price ? `\nPrice: ${p.fields.price}` : ""}\nPhotos: ${p.photos.length}\n${p.description ? `\nExtra details:\n${p.description}` : ""}\nAnalyse all photos and write premium brochure copy.`;
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: systemPrompt, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: p.mimeType, data: p.base64Image } }, { type: "text", text: userPrompt }] }] })
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1200, system: systemPrompt, messages: [{ role: "user", content: [...imageContent, { type: "text", text: userPrompt }] }] })
       });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${res.status}`); }
       const data = await res.json();
-      const text = data.content?.[0]?.text || "";
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      const parsed = JSON.parse(data.content?.[0]?.text?.replace(/```json|```/g, "").trim() || "{}");
       updateProduct(idx, { loading: false, result: parsed });
     } catch (e) {
       updateProduct(idx, { loading: false });
@@ -2291,68 +2571,74 @@ function ProductDesignerModule() {
   };
 
   const generateAll = async () => {
-    const pending = products.map((p, i) => i).filter(i => products[i].base64Image && !products[i].result);
-    if (!pending.length) { showToast("All products already generated. Upload new photos to re-generate."); return; }
+    const pending = products.map((p, i) => i).filter(i => products[i].photos.length > 0 && !products[i].result);
+    if (!pending.length) { showToast("All products already generated — or add photos first."); return; }
     setGlobalLoading(true);
-    for (const idx of pending) { await generateOne(idx); }
+    for (const idx of pending) await generateOne(idx);
     setGlobalLoading(false);
-    showToast("✅ All cards generated!");
+    showToast(`✅ ${pending.length} card${pending.length > 1 ? "s" : ""} generated!`);
   };
 
-  // Load html2canvas dynamically
   const loadHtml2Canvas = () => new Promise((resolve, reject) => {
     if (window.html2canvas) return resolve(window.html2canvas);
     const s = document.createElement("script");
     s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-    s.onload = () => resolve(window.html2canvas);
-    s.onerror = reject;
+    s.onload = () => resolve(window.html2canvas); s.onerror = reject;
     document.head.appendChild(s);
   });
 
   const saveToDrive = async (idx) => {
     const p = products[idx];
     if (!p.result) return;
-    setSaveStatus(s => ({ ...s, [idx]: "saving" }));
+    setSaveStatus(s => ({ ...s, [p.id]: "saving" }));
     try {
       const h2c = await loadHtml2Canvas();
       const cardEl = document.querySelector(`[data-card-id="${p.id}"]`);
       if (!cardEl) throw new Error("Card element not found");
       const canvas = await h2c(cardEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
       const base64 = canvas.toDataURL("image/png").split(",")[1];
-      const filename = `KHT-${(p.fields.quality || "Product").replace(/\s+/g,"-")}-${Date.now()}.png`;
+      const filename = `KHT-Brochure-${(p.fields.quality || "Product").replace(/\s+/g, "-")}-${Date.now()}.png`;
       const resp = await fetch(driveUrl, { method: "POST", body: JSON.stringify({ base64, mimeType: "image/png", filename, category: "Marketing Cards" }) });
       const data = await resp.json();
-      if (data.ok) {
-        setSaveStatus(s => ({ ...s, [idx]: "saved" }));
-        showToast(`✅ "${p.fields.quality || "Product"}" saved to Drive → Marketing Cards!`);
-      } else throw new Error("Drive upload failed");
-    } catch (e) {
-      setSaveStatus(s => ({ ...s, [idx]: null }));
-      showToast(`❌ Save failed: ${e.message}`);
-    }
+      if (data.ok) { setSaveStatus(s => ({ ...s, [p.id]: "saved" })); showToast(`✅ Saved to Drive → Marketing Cards!`); }
+      else throw new Error("Drive upload failed");
+    } catch (e) { setSaveStatus(s => ({ ...s, [p.id]: null })); showToast(`❌ Save failed: ${e.message}`); }
   };
 
   const printCatalogue = () => {
     const cards = document.querySelectorAll("[data-product-card='true']");
     if (!cards.length) { showToast("Generate at least one card first."); return; }
     const win = window.open("", "_blank");
-    const html = Array.from(cards).map(c => c.outerHTML).join("");
-    win.document.write(`<html><head><title>KHT Product Catalogue</title>
-      <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-      <style>body{margin:0;padding:20px;font-family:'Plus Jakarta Sans',sans-serif;background:#fff;}@page{size:A4;margin:15mm;}@media print{.card{page-break-inside:avoid;margin-bottom:20px;}}</style>
-      </head><body><div style="max-width:800px;margin:0 auto;">${html}</div></body></html>`);
+    const clientHeader = (clientName || clientCompany) ? `
+      <div style="background:#F9F6F0;border:2px solid #C4913A;border-radius:12px;padding:20px 28px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:9px;letter-spacing:.2em;color:#C4913A;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Prepared For</div>
+          ${clientName ? `<div style="font-size:18px;font-weight:800;color:#0D1B2A;">${clientName}</div>` : ""}
+          ${clientCompany ? `<div style="font-size:13px;color:#555;font-weight:600;">${clientCompany}</div>` : ""}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">${quoteRef ? `Ref: <strong style="color:#0D1B2A">${quoteRef}</strong><br>` : ""}Date: <strong style="color:#0D1B2A">${quoteDate || new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
+          <div style="font-size:9px;color:#C4913A;font-weight:700;">KSHIRSAGAR HOMETEXTILES · SINCE 1947</div>
+        </div>
+      </div>` : "";
+    const html = Array.from(cards).map(c => `<div style="border-radius:12px;overflow:hidden;border:1px solid #E3DDD4;margin-bottom:24px;box-shadow:0 4px 20px rgba(0,0,0,.08);">${c.outerHTML}</div>`).join("");
+    win.document.write(`<html><head><title>KHT${clientName ? ` · ${clientName}` : ""} · terrytowel.in</title>
+      <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+      <style>*{box-sizing:border-box;}body{margin:0;padding:24px;font-family:'Plus Jakarta Sans',sans-serif;background:#F4F1EC;}.wrap{max-width:800px;margin:0 auto;}@page{size:A4;margin:10mm;}@media print{body{padding:0;background:#fff;}}</style>
+      </head><body><div class="wrap">${clientHeader}${html}</div></body></html>`);
     win.document.close();
-    setTimeout(() => { win.focus(); win.print(); }, 800);
+    setTimeout(() => { win.focus(); win.print(); }, 900);
   };
 
   const saveAllToDrive = async () => {
-    const readyIdxs = products.map((p, i) => i).filter(i => products[i].result && saveStatus[products[i].id] !== "saved");
-    if (!readyIdxs.length) { showToast("No new cards to save."); return; }
-    for (const idx of readyIdxs) { await saveToDrive(idx); }
+    const unsaved = products.map((p, i) => i).filter(i => products[i].result && saveStatus[products[i].id] !== "saved");
+    if (!unsaved.length) { showToast("No new cards to save."); return; }
+    for (const idx of unsaved) await saveToDrive(idx);
   };
 
   const readyCount = products.filter(p => p.result).length;
-  const hasUnsaved = products.some((p, i) => p.result && saveStatus[p.id] !== "saved");
+  const pendingCount = products.filter(p => p.photos.length > 0 && !p.result && !p.loading).length;
+  const hasUnsaved = products.some(p => p.result && saveStatus[p.id] !== "saved");
 
   return (
     <div>
@@ -2360,89 +2646,92 @@ function ProductDesignerModule() {
       <div className="sh">
         <div>
           <div className="st">🎨 Product Designer</div>
-          <div className="text-sm text-lt" style={{ marginTop: 2 }}>AI-powered catalogue creator · Claude Vision · Auto-saves to Drive</div>
+          <div className="text-sm text-lt" style={{ marginTop: 2 }}>Brochure & quotation creator · Drive photos · Claude Vision</div>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {readyCount > 0 && (
-            <>
-              <button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print Catalogue</button>
-              {hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All to Drive</button>}
-            </>
-          )}
-          <button className="btn btn-out btn-sm" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])}>
-            <Plus size={13} /> Add Product
-          </button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          {readyCount > 0 && <><button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print / PDF</button>{hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All</button>}</>}
+          <button className="btn btn-out btn-sm" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])}><Plus size={13} /> Add Product</button>
         </div>
       </div>
 
-      {/* TOAST */}
-      {toast && (
-        <div style={{ position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)", background: "#0D1B2A", color: "#fff", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(0,0,0,.3)", whiteSpace: "nowrap" }}>{toast}</div>
-      )}
+      {toast && <div style={{ position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)", background: "#0D1B2A", color: "#fff", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(0,0,0,.3)", whiteSpace: "nowrap" }}>{toast}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* ── CLIENT / QUOTATION HEADER SECTION ── */}
+      <div className="card" style={{ marginBottom: 20, background: "linear-gradient(135deg, var(--gold-pp), var(--bg))", border: "1.5px solid var(--gold)" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>📋 Quotation / Brochure Header <span style={{ color: "var(--text-light)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional — only shows on output if filled)</span></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+          <div>
+            <label className="lbl" style={{ fontSize: 10 }}>To — Client Name</label>
+            <input className="inp" style={{ fontSize: 12, padding: "8px 12px" }} value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Mr. Rajesh Kumar" />
+          </div>
+          <div>
+            <label className="lbl" style={{ fontSize: 10 }}>Client Company</label>
+            <input className="inp" style={{ fontSize: 12, padding: "8px 12px" }} value={clientCompany} onChange={e => setClientCompany(e.target.value)} placeholder="Grand Hyatt Mumbai" />
+          </div>
+          <div>
+            <label className="lbl" style={{ fontSize: 10 }}>Quote / Ref No.</label>
+            <input className="inp" style={{ fontSize: 12, padding: "8px 12px" }} value={quoteRef} onChange={e => setQuoteRef(e.target.value)} placeholder="KHT/2026/042" />
+          </div>
+          <div>
+            <label className="lbl" style={{ fontSize: 10 }}>Date</label>
+            <input className="inp" type="date" style={{ fontSize: 12, padding: "8px 12px" }} value={quoteDate} onChange={e => setQuoteDate(e.target.value)} />
+          </div>
+        </div>
+        {(clientName || clientCompany) && (
+          <div style={{ marginTop: 10, padding: "8px 14px", background: "var(--gold-pp)", border: "1px solid var(--gold)", borderRadius: 8, fontSize: 11, color: "var(--gold)", fontWeight: 600 }}>
+            ✓ This brochure will be addressed to: <strong>{[clientName, clientCompany].filter(Boolean).join(" · ")}</strong>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 24, alignItems: "start" }}>
         {/* LEFT: PRODUCT SLOTS */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {products.map((p, idx) => (
-            <SingleProductSlot key={p.id} p={p} idx={idx} onChange={updateProduct} onRemove={removeProduct} onGenerate={generateOne} />
+            <SingleProductSlot key={p.id} p={p} idx={idx} onChange={updateProduct} onRemove={removeProduct} onGenerate={generateOne} driveUrl={driveUrl} />
           ))}
           <button className="btn btn-out" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])} style={{ width: "100%", padding: 14, borderStyle: "dashed", color: "var(--text-light)" }}>
             <Plus size={15} /> Add Another Product
           </button>
-          {products.filter(p => p.base64Image && !p.result).length > 0 && (
-            <button onClick={generateAll} disabled={globalLoading} style={{
-              width: "100%", padding: "14px", borderRadius: 12, border: "none", cursor: globalLoading ? "not-allowed" : "pointer",
-              background: globalLoading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)",
-              color: "var(--navy)", fontWeight: 800, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              boxShadow: "0 4px 20px rgba(196,145,58,.3)"
-            }}>
-              {globalLoading ? (<><span style={{ width: 16, height: 16, border: "3px solid rgba(0,0,0,.2)", borderTop: "3px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Generating…</>) : `✨ Generate All ${products.filter(p => p.base64Image && !p.result).length} Cards`}
+          {pendingCount > 0 && (
+            <button onClick={generateAll} disabled={globalLoading} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", cursor: globalLoading ? "not-allowed" : "pointer", background: globalLoading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)", color: "var(--navy)", fontWeight: 800, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px rgba(196,145,58,.3)" }}>
+              {globalLoading ? (<><span style={{ width: 16, height: 16, border: "3px solid rgba(0,0,0,.2)", borderTop: "3px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Generating…</>) : `✨ Generate All ${pendingCount} Card${pendingCount > 1 ? "s" : ""}`}
             </button>
           )}
         </div>
 
-        {/* RIGHT: GENERATED CARDS */}
+        {/* RIGHT: BROCHURE CARDS */}
         <div>
           {readyCount === 0 && (
-            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 12, opacity: .2 }}>📄</div>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: "var(--text-light)", marginBottom: 6 }}>Catalogue Preview</div>
-              <div className="text-sm text-lt">Upload photos and generate cards — they'll appear here as a printable catalogue</div>
+            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
+              <div style={{ fontSize: 52, marginBottom: 14, opacity: .2 }}>📄</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 600, color: "var(--text-light)", marginBottom: 8 }}>Brochure Preview</div>
+              <div className="text-sm text-lt" style={{ maxWidth: 300 }}>Select photos from Drive or upload, fill specs, add a price if needed, and click Generate</div>
             </div>
           )}
 
           {products.map((p, idx) => p.result && (
-            <div key={p.id} style={{ marginBottom: 20 }}>
-              {/* Card actions */}
+            <div key={p.id} style={{ marginBottom: 28 }}>
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <button className="btn btn-out btn-sm" style={{ flex: 1 }} onClick={() => {
-                  const r = p.result;
-                  const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
-                  const w = parseFloat(p.fields.weight);
-                  const gsm = (dims && w) ? Math.ceil((w/((parseFloat(dims[1])*.0254)*(parseFloat(dims[3])*.0254)))/5)*5 : null;
-                  const msg = `*${p.fields.quality.toUpperCase()}* — ${r.tagline}\n\n${r.whatsappLine}\n\n📐 ${p.fields.size} | ⚖️ ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}\n🏷️ ${p.fields.style} · ${p.fields.design}\n\n📞 +91 98225 49824 | terrytowel.in`;
-                  navigator.clipboard.writeText(msg).then(() => showToast("📲 WhatsApp message copied!"));
-                }}>📲 Copy WhatsApp</button>
-                <button
-                  className={saveStatus[p.id] === "saved" ? "btn btn-out btn-sm" : "btn btn-gold btn-sm"}
-                  style={{ flex: 1, opacity: saveStatus[p.id] === "saving" ? .6 : 1 }}
-                  onClick={() => saveToDrive(idx)}
-                  disabled={saveStatus[p.id] === "saving" || saveStatus[p.id] === "saved"}
-                >
-                  {saveStatus[p.id] === "saving" ? "☁️ Saving…" : saveStatus[p.id] === "saved" ? "✅ Saved to Drive" : "☁️ Save to Drive"}
+                  const r = p.result; const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
+                  const msg = `*${(p.fields.quality||"Product").toUpperCase()}*\n\n${r.tagline}\n\n${r.whatsappLine}\n\n📐 ${p.fields.size} | ⚖️ ${p.fields.weight}g/pc${gsm ? ` · ${gsm} GSM` : ""}${p.fields.price ? ` | 💰 ${p.fields.price}` : ""}\n🏷️ ${p.fields.style} · ${p.fields.design}\n\n📞 +91 98225 49824 | terrytowel.in`;
+                  navigator.clipboard.writeText(msg).then(() => showToast("📲 WhatsApp pitch copied!"));
+                }}>📲 WhatsApp</button>
+                <button className="btn btn-out btn-sm" style={{ flex: 1 }} onClick={() => generateOne(idx)}>🔁 Redo</button>
+                <button className={saveStatus[p.id] === "saved" ? "btn btn-out btn-sm" : "btn btn-gold btn-sm"} style={{ flex: 1.5, opacity: saveStatus[p.id] === "saving" ? .6 : 1 }} onClick={() => saveToDrive(idx)} disabled={saveStatus[p.id] === "saving" || saveStatus[p.id] === "saved"}>
+                  {saveStatus[p.id] === "saving" ? "☁️ Saving…" : saveStatus[p.id] === "saved" ? "✅ Saved" : "☁️ Save to Drive"}
                 </button>
               </div>
-              {/* The actual card */}
-              <div data-card-id={p.id}>
-                <MarketingCard p={p} />
+              <div data-card-id={p.id} style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 6px 32px rgba(13,27,42,.14)", border: "1px solid #E3DDD4" }}>
+                <BrochureCard p={p} clientName={clientName} clientCompany={clientCompany} quoteRef={quoteRef} quoteDate={quoteDate} />
               </div>
             </div>
           ))}
 
-          {/* CATALOGUE FOOTER */}
           {readyCount > 1 && (
             <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-mid)" }}>📋 {readyCount} product cards ready</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-mid)" }}>📋 {readyCount} cards ready</div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print Full Catalogue</button>
                 {hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All to Drive</button>}
@@ -2454,6 +2743,7 @@ function ProductDesignerModule() {
     </div>
   );
 }
+
 
 export default function App() {
   const [active, setActive] = useState("home");
