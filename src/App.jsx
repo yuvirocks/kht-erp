@@ -2115,20 +2115,18 @@ function LoginScreen({ onLogin }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PRODUCT DESIGNER MODULE  (Gemini Image Generation)
+   PRODUCT DESIGNER MODULE  (Claude Vision → Marketing Card)
 ═══════════════════════════════════════════════════════════════ */
 function ProductDesignerModule() {
   const [base64Image, setBase64Image] = useState(null);
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [preview, setPreview] = useState(null);
-  const [resultSrc, setResultSrc] = useState(null);
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("kht_gemini_key") || "");
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [tempKey, setTempKey] = useState("");
   const [gsm, setGsm] = useState(null);
+  const cardRef = useRef();
 
   const [fields, setFields] = useState({
     quality: "White Hand Towel",
@@ -2148,119 +2146,96 @@ function ProductDesignerModule() {
     return Math.ceil((w / areaSqM) / 5) * 5;
   };
 
-  useEffect(() => {
-    setGsm(calcGsm(fields.size, fields.weight));
-  }, [fields.size, fields.weight]);
+  useEffect(() => { setGsm(calcGsm(fields.size, fields.weight)); }, [fields.size, fields.weight]);
 
   const handleFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
     setMimeType(file.type);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setBase64Image(e.target.result.split(",")[1]);
-      setPreview(e.target.result);
-      setError(null);
-    };
+    reader.onload = (e) => { setBase64Image(e.target.result.split(",")[1]); setPreview(e.target.result); setError(null); };
     reader.readAsDataURL(file);
   };
 
-  const applyWatermark = (b64) => new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      ctx.font = `bold ${Math.floor(canvas.width * 0.035)}px Plus Jakarta Sans, sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.globalAlpha = 0.15; ctx.fillStyle = "white";
-      ctx.shadowColor = "rgba(0,0,0,.2)"; ctx.shadowBlur = 4;
-      ctx.fillText("terrytowel.in", canvas.width / 2, canvas.height / 2);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.src = `data:image/png;base64,${b64}`;
-  });
-
   const generate = async () => {
     if (!base64Image) { setError("Please upload a product sample photo first."); return; }
-    if (!apiKey) { setShowKeyModal(true); setTempKey(""); return; }
-    setLoading(true); setError(null);
-    const gsmStr = gsm ? `(${gsm} GSM)` : "";
-    const prompt = `Task: Create an ultra-premium 8K product showcase image for a hotel supplier.
-Input: The attached photo is the actual product sample.
-Requirement: Keep the SPECIFIC jacquard woven border design EXACTLY as seen in the source photo.
-
-Composition:
-1. Large hanging towel in center showing full texture and border.
-2. Two matching towels, folded and stacked neatly on a luxury wooden vanity below.
-3. A sleek glass plaque on the right with black professional typography.
-
-TEXT FOR GLASS PLAQUE:
-${fields.quality.toUpperCase()}
-HOTEL SUPPLY COLLECTION
-
-Details:
+    const key = getAnthropicKey();
+    if (!key) { setError("Claude API key not set. Go to Dispatch → ⚙️ Settings → Claude API Key."); return; }
+    setLoading(true); setError(null); setResult(null);
+    const gsmStr = gsm ? `${gsm} GSM` : "N/A";
+    const systemPrompt = `You are a luxury hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), a premium Indian manufacturer since 1947.
+Analyze the product photo and specs, then return ONLY valid JSON (no markdown, no backticks) in this exact format:
+{
+  "tagline": "A short powerful 6-8 word luxury tagline",
+  "headline": "Premium product headline (3-5 words)",
+  "description": "Two sentence premium marketing description for hotel procurement managers",
+  "usp": ["USP point 1", "USP point 2", "USP point 3", "USP point 4"],
+  "fabricObservation": "One sentence describing what you observe about fabric quality/texture from the photo",
+  "targetSegment": "e.g. 4-5 Star Hotels, Luxury Resorts",
+  "careInstructions": "Brief care instructions for hotel laundry",
+  "whatsappLine": "One punchy WhatsApp message line to send to a hotel buyer (under 20 words)"
+}`;
+    const userPrompt = `Product Specs:
 Quality: ${fields.quality}
 Border Style: ${fields.style}
 Design: ${fields.design}
 Size: ${fields.size}
-Weight: ${fields.weight} gms per pc ${gsmStr}
+Weight: ${fields.weight} gms/pc (${gsmStr})
 
-Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus background. Extremely realistic fabric texture.`;
-
-    let retries = 0;
-    while (retries < 5) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType, data: base64Image } }] }],
-              generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
-            })
-          }
-        );
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          const msg = errBody?.error?.message || `HTTP ${res.status}`;
-          throw new Error(msg);
-        }
-        const data = await res.json();
-        const b64 = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-        if (!b64) throw new Error("No image returned — model may not support image output");
-        const watermarked = await applyWatermark(b64);
-        setResultSrc(watermarked);
-        setLoading(false);
-        return;
-      } catch (e) {
-        retries++;
-        if (retries === 5) { setError(`Generation failed: ${e.message}`); setLoading(false); return; }
-        await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
-      }
-    }
-  };
-
-  const download = () => {
-    const a = document.createElement("a"); a.href = resultSrc;
-    a.download = `KHT-${fields.quality.replace(/\s+/g,"-")}-presentation.png`; a.click();
-  };
-
-  const shareImg = () => {
-    if (navigator.share) {
-      fetch(resultSrc).then(r => r.blob()).then(blob => {
-        navigator.share({ files: [new File([blob], "terrytowel-presentation.png", { type: "image/png" })], title: fields.quality, text: "From terrytowel.in" });
+Please analyze this product photo and generate the marketing card content.`;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: mimeType, data: base64Image } },
+              { type: "text", text: userPrompt }
+            ]
+          }]
+        })
       });
-    } else {
-      setError("Sharing not supported in this browser — use Download instead.");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setResult(parsed);
+    } catch (e) {
+      setError(`Generation failed: ${e.message}`);
     }
+    setLoading(false);
   };
 
-  const saveKey = () => {
-    localStorage.setItem("kht_gemini_key", tempKey);
-    setApiKey(tempKey); setShowKeyModal(false);
-    if (base64Image) setTimeout(generate, 100);
+  const printCard = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    const win = window.open("", "_blank");
+    win.document.write(`<html><head><title>KHT Product Card</title>
+      <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+      <style>body{margin:0;padding:20px;font-family:'Plus Jakarta Sans',sans-serif;background:#fff;}@media print{body{padding:0;}}</style>
+      </head><body>${el.outerHTML}</body></html>`);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 600);
+  };
+
+  const copyWhatsApp = () => {
+    if (!result) return;
+    const gsmStr = gsm ? `${gsm} GSM` : "";
+    const msg = `*${fields.quality.toUpperCase()}* — ${result.tagline}\n\n${result.whatsappLine}\n\n📐 ${fields.size} | ⚖️ ${fields.weight}g/pc ${gsmStr}\n🏷️ ${fields.style} · ${fields.design}\n\n📞 +91 98225 49824\n🌐 terrytowel.in`;
+    navigator.clipboard.writeText(msg).then(() => alert("WhatsApp message copied! ✅")).catch(() => alert("Copy failed — try manually."));
   };
 
   const setField = (k, v) => setFields(f => ({ ...f, [k]: v }));
@@ -2271,18 +2246,17 @@ Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus backgrou
       <div className="sh">
         <div>
           <div className="st">🎨 Product Designer</div>
-          <div className="text-sm text-lt" style={{ marginTop: 2 }}>AI-powered hotel supply marketing asset creator · Powered by Gemini</div>
+          <div className="text-sm text-lt" style={{ marginTop: 2 }}>AI-powered marketing card creator · Powered by Claude Vision</div>
         </div>
-        <button className="btn btn-out btn-sm" onClick={() => { setTempKey(apiKey); setShowKeyModal(true); }}>
-          <Settings size={13} /> {apiKey ? "API Key ✓" : "⚠️ Set API Key"}
-        </button>
+        <div style={{ fontSize: 12, color: "var(--text-light)", background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 12px" }}>
+          Uses Claude API Key from Settings
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 24, alignItems: "start" }}>
 
         {/* ── LEFT: INPUTS ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* DROP ZONE */}
           <div>
             <label className="lbl">Sample Product Photo</label>
@@ -2293,37 +2267,30 @@ Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus backgrou
               onClick={() => fileRef.current?.click()}
               style={{
                 border: `2px dashed ${dragging ? "var(--gold)" : "var(--border)"}`,
-                borderRadius: 16, padding: preview ? "16px" : "40px 24px",
+                borderRadius: 16, padding: preview ? "12px" : "32px 24px",
                 textAlign: "center", cursor: "pointer",
-                background: dragging ? "var(--gold-pp)" : preview ? "var(--bg)" : "var(--white)",
-                transition: "all .2s"
+                background: dragging ? "var(--gold-pp)" : preview ? "var(--bg)" : "var(--white)", transition: "all .2s"
               }}
             >
               <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
               {preview ? (
                 <div>
-                  <img src={preview} alt="preview" style={{ maxHeight: 220, borderRadius: 12, boxShadow: "var(--shadow-md)", marginBottom: 10, maxWidth: "100%", objectFit: "contain" }} />
-                  <div className="text-xs text-lt" style={{ color: "var(--gold)", fontWeight: 700 }}>🔄 Click to change photo</div>
+                  <img src={preview} alt="preview" style={{ maxHeight: 180, borderRadius: 10, boxShadow: "var(--shadow-md)", marginBottom: 8, maxWidth: "100%", objectFit: "contain" }} />
+                  <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }}>🔄 Click to change photo</div>
                 </div>
               ) : (
                 <div>
-                  <div style={{ fontSize: 40, marginBottom: 10 }}>📸</div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-dark)", marginBottom: 4 }}>Click or drag to upload sample</div>
-                  <div className="text-xs text-lt">JPG, PNG supported · max 10MB</div>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>📸</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-dark)", marginBottom: 4 }}>Click or drag to upload sample</div>
+                  <div className="text-xs text-lt">JPG, PNG · max 10MB</div>
                 </div>
               )}
             </div>
           </div>
 
           {/* SPEC FIELDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {[
-              ["Quality Name", "quality", "text"],
-              ["Border Style", "style", "text"],
-              ["Design / Style", "design", "text"],
-              ["Size (inches)", "size", "text"],
-              ["Weight (gms/pc)", "weight", "number"],
-            ].map(([label, key, type]) => (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[["Quality Name","quality","text"],["Border Style","style","text"],["Design / Style","design","text"],["Size (inches)","size","text"],["Weight (gms/pc)","weight","number"]].map(([label,key,type]) => (
               <div key={key}>
                 <label className="lbl">{label}</label>
                 <input className="inp" type={type} value={fields[key]} onChange={e => setField(key, e.target.value)} />
@@ -2338,93 +2305,135 @@ Setting: Minimalist, bright, sunlit high-end hotel bathroom. Soft focus backgrou
             </div>
           </div>
 
-          {/* GENERATE BUTTON */}
-          <button
-            onClick={generate}
-            disabled={loading}
-            style={{
-              width: "100%", padding: "16px", borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer",
-              background: loading ? "#888" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)",
-              color: "var(--navy)", fontWeight: 800, fontSize: 15, letterSpacing: ".03em",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              boxShadow: loading ? "none" : "0 4px 20px rgba(196,145,58,.35)", transition: "all .2s"
-            }}
-          >
-            {loading ? (
-              <>
-                <span style={{ display: "inline-block", width: 18, height: 18, border: "3px solid rgba(255,255,255,.3)", borderTop: "3px solid var(--navy)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-                Generating with AI…
-              </>
-            ) : "✨ Generate Marketing Asset"}
+          <button onClick={generate} disabled={loading} style={{
+            width: "100%", padding: "14px", borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer",
+            background: loading ? "#aaa" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)",
+            color: "var(--navy)", fontWeight: 800, fontSize: 14, letterSpacing: ".03em",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            boxShadow: loading ? "none" : "0 4px 20px rgba(196,145,58,.35)", transition: "all .2s"
+          }}>
+            {loading ? (<><span style={{ display: "inline-block", width: 16, height: 16, border: "3px solid rgba(255,255,255,.3)", borderTop: "3px solid var(--navy)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />Analysing with Claude…</>) : "✨ Generate Marketing Card"}
           </button>
 
-          {error && (
-            <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", color: "#DC2626", fontSize: 12, fontWeight: 600 }}>
-              ⚠️ {error}
-            </div>
-          )}
+          {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", color: "#DC2626", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</div>}
         </div>
 
-        {/* ── RIGHT: RESULT ── */}
-        <div style={{
-          background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20,
-          minHeight: 520, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24
-        }}>
-          {!resultSrc && !loading && (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 56, marginBottom: 12, opacity: .3 }}>🖼️</div>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: "var(--text-light)", marginBottom: 6 }}>Output Preview</div>
-              <div className="text-sm text-lt">Upload a photo and click Generate to create your hotel supply marketing asset</div>
+        {/* ── RIGHT: RESULT CARD ── */}
+        <div>
+          {!result && !loading && (
+            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 480, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+              <div style={{ fontSize: 52, marginBottom: 12, opacity: .25 }}>🪄</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: "var(--text-light)", marginBottom: 6 }}>Marketing Card Preview</div>
+              <div className="text-sm text-lt">Upload a photo and click Generate — Claude will analyse your product and build a ready-to-share marketing card</div>
             </div>
           )}
           {loading && (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 52, height: 52, border: "4px solid var(--border)", borderTop: "4px solid var(--gold)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>AI is rendering…</div>
-              <div className="text-sm text-lt">Gemini is creating your premium hotel supply visual.<br />This takes 30–60 seconds.</div>
+            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 480, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+              <div style={{ width: 48, height: 48, border: "4px solid var(--border)", borderTop: "4px solid var(--gold)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Claude is analysing your product…</div>
+              <div className="text-sm text-lt">Reading fabric, border design and specs.<br />Usually takes 5–10 seconds.</div>
             </div>
           )}
-          {resultSrc && !loading && (
-            <div style={{ width: "100%", textAlign: "center" }}>
-              <img src={resultSrc} alt="Generated" style={{ width: "100%", borderRadius: 14, boxShadow: "var(--shadow-lg)", marginBottom: 20 }} />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button className="btn btn-out btn-full" onClick={download} style={{ flex: 1 }}>⬇️ Download High-Res</button>
-                <button className="btn btn-gold btn-full" onClick={shareImg} style={{ flex: 1 }}>📤 Share with Client</button>
+
+          {result && !loading && (
+            <div>
+              {/* ACTION BUTTONS */}
+              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                <button className="btn btn-gold" onClick={printCard} style={{ flex: 1 }}>🖨️ Print / Save PDF</button>
+                <button className="btn btn-out" onClick={copyWhatsApp} style={{ flex: 1 }}>📲 Copy WhatsApp Message</button>
+                <button className="btn btn-out btn-sm" onClick={() => setResult(null)} style={{ color: "var(--text-light)" }}>🔁 Redo</button>
               </div>
-              <button className="btn btn-out btn-sm" style={{ marginTop: 10, width: "100%", color: "var(--text-light)" }} onClick={() => setResultSrc(null)}>
-                🔁 Generate New Version
-              </button>
+
+              {/* MARKETING CARD */}
+              <div ref={cardRef} style={{
+                background: "#fff", borderRadius: 20, overflow: "hidden",
+                boxShadow: "0 8px 40px rgba(13,27,42,.15)", border: "1px solid #E3DDD4",
+                fontFamily: "'Plus Jakarta Sans', sans-serif"
+              }}>
+                {/* TOP BAND */}
+                <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #1a2f45 100%)", padding: "28px 32px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Kshirsagar Hometextiles · Since 1947</div>
+                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2, marginBottom: 8 }}>{result.headline}</div>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", fontStyle: "italic" }}>"{result.tagline}"</div>
+                  </div>
+                  {preview && <img src={preview} alt="product" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 12, border: "3px solid rgba(196,145,58,.4)", flexShrink: 0 }} />}
+                </div>
+
+                <div style={{ padding: "28px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                  {/* LEFT COL */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {/* Description */}
+                    <div>
+                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Product Overview</div>
+                      <p style={{ fontSize: 13, color: "#3a3a3a", lineHeight: 1.7, margin: 0 }}>{result.description}</p>
+                    </div>
+                    {/* Fabric observation */}
+                    <div style={{ background: "#F4F1EC", borderLeft: "3px solid #C4913A", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
+                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Fabric Analysis</div>
+                      <div style={{ fontSize: 12, color: "#555", lineHeight: 1.6 }}>{result.fabricObservation}</div>
+                    </div>
+                    {/* USPs */}
+                    <div>
+                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 10, textTransform: "uppercase" }}>Key Advantages</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                        {result.usp?.map((u, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#333" }}>
+                            <span style={{ color: "#C4913A", fontWeight: 800, marginTop: 1, flexShrink: 0 }}>✓</span>
+                            <span>{u}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COL */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {/* Specs table */}
+                    <div>
+                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 10, textTransform: "uppercase" }}>Specifications</div>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        {[
+                          ["Quality", fields.quality],
+                          ["Border Style", fields.style],
+                          ["Design", fields.design],
+                          ["Size", fields.size],
+                          ["Weight", `${fields.weight} gms/pc`],
+                          ["GSM", gsm ? `${gsm} GSM` : "—"],
+                        ].map(([k, v], i) => (
+                          <tr key={k} style={{ background: i % 2 === 0 ? "#FAFAF9" : "#fff" }}>
+                            <td style={{ padding: "7px 10px", color: "#888", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "42%" }}>{k}</td>
+                            <td style={{ padding: "7px 10px", color: "#222", fontWeight: 700, borderBottom: "1px solid #F0EDE8", fontFamily: "Times New Roman, serif" }}>{v}</td>
+                          </tr>
+                        ))}
+                      </table>
+                    </div>
+                    {/* Target & Care */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ background: "#0D1B2A", borderRadius: 10, padding: "12px 16px" }}>
+                        <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Target Segment</div>
+                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{result.targetSegment}</div>
+                      </div>
+                      <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "12px 16px" }}>
+                        <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Care Instructions</div>
+                        <div style={{ fontSize: 12, color: "#555" }}>{result.careInstructions}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* FOOTER */}
+                <div style={{ background: "#F4F1EC", borderTop: "1px solid #E3DDD4", padding: "14px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: 11, color: "#888" }}>
+                    <strong style={{ color: "#0D1B2A" }}>Kshirsagar Hometextiles</strong> · Solapur, Maharashtra · +91 98225 49824
+                  </div>
+                  <div style={{ fontSize: 11, color: "#C4913A", fontWeight: 700 }}>terrytowel.in</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* API KEY MODAL */}
-      {showKeyModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="card" style={{ width: 460, boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>🔑 Gemini API Key</div>
-              <button className="btn btn-out btn-sm" onClick={() => setShowKeyModal(false)}><X size={14} /></button>
-            </div>
-            <div className="card" style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", padding: 12, marginBottom: 14, fontSize: 12, lineHeight: 1.7, color: "var(--text-mid)" }}>
-              Get your free API key at <strong>aistudio.google.com</strong> → Get API Key.<br />
-              The key is stored locally on your device only — never shared.
-            </div>
-            <label className="lbl">Paste your Gemini API Key</label>
-            <input className="inp" style={{ marginBottom: 14, fontFamily: "monospace", fontSize: 12 }}
-              type="password" placeholder="AIzaSy…"
-              value={tempKey} onChange={e => setTempKey(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && saveKey()}
-              autoFocus
-            />
-            <div className="flex gap3">
-              <button className="btn btn-gold btn-full" onClick={saveKey} disabled={!tempKey.trim()}>Save & Continue →</button>
-              <button className="btn btn-out" onClick={() => setShowKeyModal(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
