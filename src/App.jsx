@@ -2115,130 +2115,244 @@ function LoginScreen({ onLogin }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PRODUCT DESIGNER MODULE  (Claude Vision → Marketing Card)
+   PRODUCT DESIGNER MODULE  (Claude Vision → Marketing Catalogue)
 ═══════════════════════════════════════════════════════════════ */
-function ProductDesignerModule() {
-  const [base64Image, setBase64Image] = useState(null);
-  const [mimeType, setMimeType] = useState("image/jpeg");
-  const [preview, setPreview] = useState(null);
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [dragging, setDragging] = useState(false);
-  const [gsm, setGsm] = useState(null);
-  const cardRef = useRef();
+const EMPTY_PRODUCT = () => ({
+  id: Date.now() + Math.random(),
+  base64Image: null, mimeType: "image/jpeg", preview: null, result: null, loading: false,
+  fields: { quality: "", style: "Jacquard Border", design: "Classic Dobby", size: "14 x 21 inches", weight: "80" }
+});
 
-  const [fields, setFields] = useState({
-    quality: "White Hand Towel",
-    style: "Jacquard Border",
-    design: "Classic Dobby",
-    size: "14 x 21 inches",
-    weight: "80",
-  });
-
+function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate }) {
   const fileRef = useRef();
-
-  const calcGsm = (size, weight) => {
-    const dims = size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
-    const w = parseFloat(weight);
+  const gsm = (() => {
+    const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
+    const w = parseFloat(p.fields.weight);
     if (!dims || !w) return null;
-    const areaSqM = (parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254);
-    return Math.ceil((w / areaSqM) / 5) * 5;
-  };
-
-  useEffect(() => { setGsm(calcGsm(fields.size, fields.weight)); }, [fields.size, fields.weight]);
-
+    return Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5;
+  })();
   const handleFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
-    setMimeType(file.type);
     const reader = new FileReader();
-    reader.onload = (e) => { setBase64Image(e.target.result.split(",")[1]); setPreview(e.target.result); setError(null); };
+    reader.onload = (e) => onChange(idx, { base64Image: e.target.result.split(",")[1], mimeType: file.type, preview: e.target.result });
     reader.readAsDataURL(file);
   };
+  const setField = (k, v) => onChange(idx, { fields: { ...p.fields, [k]: v } });
+  return (
+    <div style={{ background: "var(--white)", border: p.result ? "2px solid var(--gold)" : "1.5px solid var(--border)", borderRadius: 16, overflow: "hidden", boxShadow: p.result ? "0 4px 20px rgba(196,145,58,.15)" : "var(--shadow-sm)", transition: "all .2s" }}>
+      <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-mid)" }}>
+          {p.result ? "✅ " : ""} Product {idx + 1}{p.fields.quality ? ` · ${p.fields.quality}` : ""}
+        </div>
+        <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", fontSize: 16, lineHeight: 1, padding: "2px 6px", borderRadius: 4 }}>✕</button>
+      </div>
+      <div style={{ padding: 16, display: "grid", gridTemplateColumns: "150px 1fr", gap: 14, alignItems: "start" }}>
+        <div onClick={() => fileRef.current?.click()} style={{ border: `2px dashed ${p.preview ? "var(--gold)" : "var(--border)"}`, borderRadius: 12, padding: p.preview ? 6 : "20px 8px", textAlign: "center", cursor: "pointer", background: "var(--bg)", minHeight: 120, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+          {p.preview ? <img src={p.preview} alt="preview" style={{ width: "100%", borderRadius: 8, objectFit: "cover", maxHeight: 130 }} /> : <div style={{ fontSize: 11, color: "var(--text-light)", lineHeight: 1.8 }}><div style={{ fontSize: 26 }}>📸</div>Click to upload</div>}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {[["Quality Name","quality","text"],["Border Style","style","text"],["Design","design","text"],["Size (inches)","size","text"],["Weight (g/pc)","weight","number"]].map(([label,key,type]) => (
+            <div key={key}>
+              <label className="lbl" style={{ fontSize: 10 }}>{label}</label>
+              <input className="inp" style={{ padding: "7px 10px", fontSize: 12 }} type={type} value={p.fields[key]} onChange={e => setField(key, e.target.value)} placeholder={label} />
+            </div>
+          ))}
+          <div>
+            <label className="lbl" style={{ fontSize: 10 }}>GSM</label>
+            <div style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontWeight: 800, fontSize: 13, color: gsm ? "var(--gold)" : "var(--text-light)", fontFamily: "Times New Roman, serif" }}>{gsm ? `${gsm} GSM` : "—"}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: "0 16px 16px" }}>
+        <button onClick={() => onGenerate(idx)} disabled={p.loading || !p.base64Image}
+          style={{ width: "100%", padding: "10px", borderRadius: 10, border: p.result ? "1.5px solid var(--gold)" : "none", cursor: (p.loading || !p.base64Image) ? "not-allowed" : "pointer", background: p.result ? "var(--gold-pp)" : p.loading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)", color: p.result ? "var(--gold)" : "var(--navy)", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          {p.loading ? (<><span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTop: "2px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Analysing with Claude…</>) : p.result ? "✅ Card Ready · Re-generate" : !p.base64Image ? "📸 Upload photo first" : "✨ Generate Card"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
-  const generate = async () => {
-    if (!base64Image) { setError("Please upload a product sample photo first."); return; }
+function MarketingCard({ p, cardRef }) {
+  const gsm = (() => {
+    const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
+    const w = parseFloat(p.fields.weight);
+    if (!dims || !w) return null;
+    return Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5;
+  })();
+  const r = p.result;
+  if (!r) return null;
+  return (
+    <div ref={cardRef} data-product-card="true" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(13,27,42,.12)", border: "1px solid #E3DDD4", fontFamily: "'Plus Jakarta Sans', sans-serif", pageBreakInside: "avoid", marginBottom: 24 }}>
+      <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #1a2f45 100%)", padding: "24px 28px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 9, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, marginBottom: 5, textTransform: "uppercase" }}>Kshirsagar Hometextiles · Since 1947</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1.2, marginBottom: 6 }}>{r.headline}</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,.6)", fontStyle: "italic" }}>"{r.tagline}"</div>
+        </div>
+        {p.preview && <img src={p.preview} alt="product" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 10, border: "2px solid rgba(196,145,58,.4)", flexShrink: 0 }} />}
+      </div>
+      <div style={{ padding: "22px 28px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Product Overview</div>
+            <p style={{ fontSize: 12, color: "#3a3a3a", lineHeight: 1.7, margin: 0 }}>{r.description}</p>
+          </div>
+          <div style={{ background: "#F4F1EC", borderLeft: "3px solid #C4913A", borderRadius: "0 8px 8px 0", padding: "10px 14px" }}>
+            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Fabric Analysis</div>
+            <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>{r.fabricObservation}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Key Advantages</div>
+            {r.usp?.map((u, i) => (
+              <div key={i} style={{ display: "flex", gap: 7, fontSize: 11, color: "#333", marginBottom: 5 }}>
+                <span style={{ color: "#C4913A", fontWeight: 800, flexShrink: 0 }}>✓</span><span>{u}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Specifications</div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              {[["Quality",p.fields.quality],["Border",p.fields.style],["Design",p.fields.design],["Size",p.fields.size],["Weight",`${p.fields.weight} gms/pc`],["GSM",gsm ? `${gsm} GSM` : "—"]].map(([k,v],i) => (
+                <tr key={k} style={{ background: i%2===0 ? "#FAFAF9" : "#fff" }}>
+                  <td style={{ padding: "6px 8px", color: "#888", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "40%" }}>{k}</td>
+                  <td style={{ padding: "6px 8px", color: "#222", fontWeight: 700, borderBottom: "1px solid #F0EDE8", fontFamily: "Times New Roman, serif" }}>{v}</td>
+                </tr>
+              ))}
+            </table>
+          </div>
+          <div style={{ background: "#0D1B2A", borderRadius: 10, padding: "10px 14px" }}>
+            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 3, textTransform: "uppercase" }}>Target Segment</div>
+            <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{r.targetSegment}</div>
+          </div>
+          <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "10px 14px" }}>
+            <div style={{ fontSize: 9, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 3, textTransform: "uppercase" }}>Care Instructions</div>
+            <div style={{ fontSize: 11, color: "#555" }}>{r.careInstructions}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ background: "#F4F1EC", borderTop: "1px solid #E3DDD4", padding: "12px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 10, color: "#888" }}><strong style={{ color: "#0D1B2A" }}>Kshirsagar Hometextiles</strong> · Solapur, Maharashtra · +91 98225 49824</div>
+        <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 700 }}>terrytowel.in</div>
+      </div>
+    </div>
+  );
+}
+
+function ProductDesignerModule() {
+  const [products, setProducts] = useState([EMPTY_PRODUCT()]);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState({});
+  const [toast, setToast] = useState(null);
+  const catalogueRef = useRef();
+  const driveUrl = localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL;
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
+
+  const updateProduct = (idx, patch) => {
+    setProducts(prev => prev.map((p, i) => i === idx ? { ...p, ...patch, fields: patch.fields !== undefined ? patch.fields : p.fields } : p));
+  };
+
+  const removeProduct = (idx) => {
+    if (products.length === 1) { showToast("Need at least one product slot."); return; }
+    setProducts(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const generateOne = async (idx) => {
+    const p = products[idx];
+    if (!p.base64Image) return;
     const key = getAnthropicKey();
-    if (!key) { setError("Claude API key not set. Go to Dispatch → ⚙️ Settings → Claude API Key."); return; }
-    setLoading(true); setError(null); setResult(null);
-    const gsmStr = gsm ? `${gsm} GSM` : "N/A";
-    const systemPrompt = `You are a luxury hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), a premium Indian manufacturer since 1947.
-Analyze the product photo and specs, then return ONLY valid JSON (no markdown, no backticks) in this exact format:
-{
-  "tagline": "A short powerful 6-8 word luxury tagline",
-  "headline": "Premium product headline (3-5 words)",
-  "description": "Two sentence premium marketing description for hotel procurement managers",
-  "usp": ["USP point 1", "USP point 2", "USP point 3", "USP point 4"],
-  "fabricObservation": "One sentence describing what you observe about fabric quality/texture from the photo",
-  "targetSegment": "e.g. 4-5 Star Hotels, Luxury Resorts",
-  "careInstructions": "Brief care instructions for hotel laundry",
-  "whatsappLine": "One punchy WhatsApp message line to send to a hotel buyer (under 20 words)"
-}`;
-    const userPrompt = `Product Specs:
-Quality: ${fields.quality}
-Border Style: ${fields.style}
-Design: ${fields.design}
-Size: ${fields.size}
-Weight: ${fields.weight} gms/pc (${gsmStr})
-
-Please analyze this product photo and generate the marketing card content.`;
+    if (!key) { showToast("⚠️ Claude API key not set. Go to Dispatch → ⚙️ Settings."); return; }
+    updateProduct(idx, { loading: true, result: null });
+    const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
+    const w = parseFloat(p.fields.weight);
+    const gsm = (dims && w) ? Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5 : null;
+    const systemPrompt = `You are a luxury hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), a premium Indian manufacturer since 1947. Analyse the product photo and specs, then return ONLY valid JSON (no markdown, no backticks):
+{"tagline":"6-8 word luxury tagline","headline":"3-5 word premium product headline","description":"Two sentence premium marketing description for hotel procurement managers","usp":["USP 1","USP 2","USP 3","USP 4"],"fabricObservation":"One sentence about fabric quality/texture from the photo","targetSegment":"e.g. 4-5 Star Hotels, Luxury Resorts","careInstructions":"Brief care instructions for hotel laundry","whatsappLine":"Punchy WhatsApp line for hotel buyer under 20 words"}`;
+    const userPrompt = `Quality: ${p.fields.quality}\nBorder: ${p.fields.style}\nDesign: ${p.fields.design}\nSize: ${p.fields.size}\nWeight: ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}\nAnalyse this product photo and generate marketing card content.`;
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": key,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: mimeType, data: base64Image } },
-              { type: "text", text: userPrompt }
-            ]
-          }]
-        })
+        headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: systemPrompt, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: p.mimeType, data: p.base64Image } }, { type: "text", text: userPrompt }] }] })
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `HTTP ${res.status}`);
-      }
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${res.status}`); }
       const data = await res.json();
       const text = data.content?.[0]?.text || "";
-      const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      setResult(parsed);
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      updateProduct(idx, { loading: false, result: parsed });
     } catch (e) {
-      setError(`Generation failed: ${e.message}`);
+      updateProduct(idx, { loading: false });
+      showToast(`❌ Product ${idx + 1}: ${e.message}`);
     }
-    setLoading(false);
   };
 
-  const printCard = () => {
-    const el = cardRef.current;
-    if (!el) return;
+  const generateAll = async () => {
+    const pending = products.map((p, i) => i).filter(i => products[i].base64Image && !products[i].result);
+    if (!pending.length) { showToast("All products already generated. Upload new photos to re-generate."); return; }
+    setGlobalLoading(true);
+    for (const idx of pending) { await generateOne(idx); }
+    setGlobalLoading(false);
+    showToast("✅ All cards generated!");
+  };
+
+  // Load html2canvas dynamically
+  const loadHtml2Canvas = () => new Promise((resolve, reject) => {
+    if (window.html2canvas) return resolve(window.html2canvas);
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+
+  const saveToDrive = async (idx) => {
+    const p = products[idx];
+    if (!p.result) return;
+    setSaveStatus(s => ({ ...s, [idx]: "saving" }));
+    try {
+      const h2c = await loadHtml2Canvas();
+      const cardEl = document.querySelector(`[data-card-id="${p.id}"]`);
+      if (!cardEl) throw new Error("Card element not found");
+      const canvas = await h2c(cardEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+      const base64 = canvas.toDataURL("image/png").split(",")[1];
+      const filename = `KHT-${(p.fields.quality || "Product").replace(/\s+/g,"-")}-${Date.now()}.png`;
+      const resp = await fetch(driveUrl, { method: "POST", body: JSON.stringify({ base64, mimeType: "image/png", filename, category: "Marketing Cards" }) });
+      const data = await resp.json();
+      if (data.ok) {
+        setSaveStatus(s => ({ ...s, [idx]: "saved" }));
+        showToast(`✅ "${p.fields.quality || "Product"}" saved to Drive → Marketing Cards!`);
+      } else throw new Error("Drive upload failed");
+    } catch (e) {
+      setSaveStatus(s => ({ ...s, [idx]: null }));
+      showToast(`❌ Save failed: ${e.message}`);
+    }
+  };
+
+  const printCatalogue = () => {
+    const cards = document.querySelectorAll("[data-product-card='true']");
+    if (!cards.length) { showToast("Generate at least one card first."); return; }
     const win = window.open("", "_blank");
-    win.document.write(`<html><head><title>KHT Product Card</title>
+    const html = Array.from(cards).map(c => c.outerHTML).join("");
+    win.document.write(`<html><head><title>KHT Product Catalogue</title>
       <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-      <style>body{margin:0;padding:20px;font-family:'Plus Jakarta Sans',sans-serif;background:#fff;}@media print{body{padding:0;}}</style>
-      </head><body>${el.outerHTML}</body></html>`);
+      <style>body{margin:0;padding:20px;font-family:'Plus Jakarta Sans',sans-serif;background:#fff;}@page{size:A4;margin:15mm;}@media print{.card{page-break-inside:avoid;margin-bottom:20px;}}</style>
+      </head><body><div style="max-width:800px;margin:0 auto;">${html}</div></body></html>`);
     win.document.close();
-    setTimeout(() => { win.focus(); win.print(); }, 600);
+    setTimeout(() => { win.focus(); win.print(); }, 800);
   };
 
-  const copyWhatsApp = () => {
-    if (!result) return;
-    const gsmStr = gsm ? `${gsm} GSM` : "";
-    const msg = `*${fields.quality.toUpperCase()}* — ${result.tagline}\n\n${result.whatsappLine}\n\n📐 ${fields.size} | ⚖️ ${fields.weight}g/pc ${gsmStr}\n🏷️ ${fields.style} · ${fields.design}\n\n📞 +91 98225 49824\n🌐 terrytowel.in`;
-    navigator.clipboard.writeText(msg).then(() => alert("WhatsApp message copied! ✅")).catch(() => alert("Copy failed — try manually."));
+  const saveAllToDrive = async () => {
+    const readyIdxs = products.map((p, i) => i).filter(i => products[i].result && saveStatus[products[i].id] !== "saved");
+    if (!readyIdxs.length) { showToast("No new cards to save."); return; }
+    for (const idx of readyIdxs) { await saveToDrive(idx); }
   };
 
-  const setField = (k, v) => setFields(f => ({ ...f, [k]: v }));
+  const readyCount = products.filter(p => p.result).length;
+  const hasUnsaved = products.some((p, i) => p.result && saveStatus[p.id] !== "saved");
 
   return (
     <div>
@@ -2246,189 +2360,92 @@ Please analyze this product photo and generate the marketing card content.`;
       <div className="sh">
         <div>
           <div className="st">🎨 Product Designer</div>
-          <div className="text-sm text-lt" style={{ marginTop: 2 }}>AI-powered marketing card creator · Powered by Claude Vision</div>
+          <div className="text-sm text-lt" style={{ marginTop: 2 }}>AI-powered catalogue creator · Claude Vision · Auto-saves to Drive</div>
         </div>
-        <div style={{ fontSize: 12, color: "var(--text-light)", background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 12px" }}>
-          Uses Claude API Key from Settings
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {readyCount > 0 && (
+            <>
+              <button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print Catalogue</button>
+              {hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All to Drive</button>}
+            </>
+          )}
+          <button className="btn btn-out btn-sm" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])}>
+            <Plus size={13} /> Add Product
+          </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 24, alignItems: "start" }}>
+      {/* TOAST */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)", background: "#0D1B2A", color: "#fff", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(0,0,0,.3)", whiteSpace: "nowrap" }}>{toast}</div>
+      )}
 
-        {/* ── LEFT: INPUTS ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* LEFT: PRODUCT SLOTS */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* DROP ZONE */}
-          <div>
-            <label className="lbl">Sample Product Photo</label>
-            <div
-              onDragOver={e => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
-              onClick={() => fileRef.current?.click()}
-              style={{
-                border: `2px dashed ${dragging ? "var(--gold)" : "var(--border)"}`,
-                borderRadius: 16, padding: preview ? "12px" : "32px 24px",
-                textAlign: "center", cursor: "pointer",
-                background: dragging ? "var(--gold-pp)" : preview ? "var(--bg)" : "var(--white)", transition: "all .2s"
-              }}
-            >
-              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
-              {preview ? (
-                <div>
-                  <img src={preview} alt="preview" style={{ maxHeight: 180, borderRadius: 10, boxShadow: "var(--shadow-md)", marginBottom: 8, maxWidth: "100%", objectFit: "contain" }} />
-                  <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 700 }}>🔄 Click to change photo</div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>📸</div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-dark)", marginBottom: 4 }}>Click or drag to upload sample</div>
-                  <div className="text-xs text-lt">JPG, PNG · max 10MB</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* SPEC FIELDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[["Quality Name","quality","text"],["Border Style","style","text"],["Design / Style","design","text"],["Size (inches)","size","text"],["Weight (gms/pc)","weight","number"]].map(([label,key,type]) => (
-              <div key={key}>
-                <label className="lbl">{label}</label>
-                <input className="inp" type={type} value={fields[key]} onChange={e => setField(key, e.target.value)} />
-              </div>
-            ))}
-            <div>
-              <label className="lbl">Calculated GSM</label>
-              <div style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: 800, fontSize: 15, color: gsm ? "var(--gold)" : "var(--text-light)", fontFamily: "Times New Roman, serif" }}>{gsm ? `${gsm} GSM` : "—"}</span>
-                <span style={{ fontSize: 9.5, color: "var(--text-light)", textAlign: "right", lineHeight: 1.4 }}>Rounded to<br />multiple of 5</span>
-              </div>
-            </div>
-          </div>
-
-          <button onClick={generate} disabled={loading} style={{
-            width: "100%", padding: "14px", borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer",
-            background: loading ? "#aaa" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)",
-            color: "var(--navy)", fontWeight: 800, fontSize: 14, letterSpacing: ".03em",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-            boxShadow: loading ? "none" : "0 4px 20px rgba(196,145,58,.35)", transition: "all .2s"
-          }}>
-            {loading ? (<><span style={{ display: "inline-block", width: 16, height: 16, border: "3px solid rgba(255,255,255,.3)", borderTop: "3px solid var(--navy)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />Analysing with Claude…</>) : "✨ Generate Marketing Card"}
+          {products.map((p, idx) => (
+            <SingleProductSlot key={p.id} p={p} idx={idx} onChange={updateProduct} onRemove={removeProduct} onGenerate={generateOne} />
+          ))}
+          <button className="btn btn-out" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])} style={{ width: "100%", padding: 14, borderStyle: "dashed", color: "var(--text-light)" }}>
+            <Plus size={15} /> Add Another Product
           </button>
-
-          {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", color: "#DC2626", fontSize: 12, fontWeight: 600 }}>⚠️ {error}</div>}
+          {products.filter(p => p.base64Image && !p.result).length > 0 && (
+            <button onClick={generateAll} disabled={globalLoading} style={{
+              width: "100%", padding: "14px", borderRadius: 12, border: "none", cursor: globalLoading ? "not-allowed" : "pointer",
+              background: globalLoading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)",
+              color: "var(--navy)", fontWeight: 800, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              boxShadow: "0 4px 20px rgba(196,145,58,.3)"
+            }}>
+              {globalLoading ? (<><span style={{ width: 16, height: 16, border: "3px solid rgba(0,0,0,.2)", borderTop: "3px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Generating…</>) : `✨ Generate All ${products.filter(p => p.base64Image && !p.result).length} Cards`}
+            </button>
+          )}
         </div>
 
-        {/* ── RIGHT: RESULT CARD ── */}
+        {/* RIGHT: GENERATED CARDS */}
         <div>
-          {!result && !loading && (
-            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 480, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
-              <div style={{ fontSize: 52, marginBottom: 12, opacity: .25 }}>🪄</div>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: "var(--text-light)", marginBottom: 6 }}>Marketing Card Preview</div>
-              <div className="text-sm text-lt">Upload a photo and click Generate — Claude will analyse your product and build a ready-to-share marketing card</div>
-            </div>
-          )}
-          {loading && (
-            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 480, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
-              <div style={{ width: 48, height: 48, border: "4px solid var(--border)", borderTop: "4px solid var(--gold)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Claude is analysing your product…</div>
-              <div className="text-sm text-lt">Reading fabric, border design and specs.<br />Usually takes 5–10 seconds.</div>
+          {readyCount === 0 && (
+            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 12, opacity: .2 }}>📄</div>
+              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, color: "var(--text-light)", marginBottom: 6 }}>Catalogue Preview</div>
+              <div className="text-sm text-lt">Upload photos and generate cards — they'll appear here as a printable catalogue</div>
             </div>
           )}
 
-          {result && !loading && (
-            <div>
-              {/* ACTION BUTTONS */}
-              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                <button className="btn btn-gold" onClick={printCard} style={{ flex: 1 }}>🖨️ Print / Save PDF</button>
-                <button className="btn btn-out" onClick={copyWhatsApp} style={{ flex: 1 }}>📲 Copy WhatsApp Message</button>
-                <button className="btn btn-out btn-sm" onClick={() => setResult(null)} style={{ color: "var(--text-light)" }}>🔁 Redo</button>
+          {products.map((p, idx) => p.result && (
+            <div key={p.id} style={{ marginBottom: 20 }}>
+              {/* Card actions */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <button className="btn btn-out btn-sm" style={{ flex: 1 }} onClick={() => {
+                  const r = p.result;
+                  const dims = p.fields.size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
+                  const w = parseFloat(p.fields.weight);
+                  const gsm = (dims && w) ? Math.ceil((w/((parseFloat(dims[1])*.0254)*(parseFloat(dims[3])*.0254)))/5)*5 : null;
+                  const msg = `*${p.fields.quality.toUpperCase()}* — ${r.tagline}\n\n${r.whatsappLine}\n\n📐 ${p.fields.size} | ⚖️ ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}\n🏷️ ${p.fields.style} · ${p.fields.design}\n\n📞 +91 98225 49824 | terrytowel.in`;
+                  navigator.clipboard.writeText(msg).then(() => showToast("📲 WhatsApp message copied!"));
+                }}>📲 Copy WhatsApp</button>
+                <button
+                  className={saveStatus[p.id] === "saved" ? "btn btn-out btn-sm" : "btn btn-gold btn-sm"}
+                  style={{ flex: 1, opacity: saveStatus[p.id] === "saving" ? .6 : 1 }}
+                  onClick={() => saveToDrive(idx)}
+                  disabled={saveStatus[p.id] === "saving" || saveStatus[p.id] === "saved"}
+                >
+                  {saveStatus[p.id] === "saving" ? "☁️ Saving…" : saveStatus[p.id] === "saved" ? "✅ Saved to Drive" : "☁️ Save to Drive"}
+                </button>
               </div>
+              {/* The actual card */}
+              <div data-card-id={p.id}>
+                <MarketingCard p={p} />
+              </div>
+            </div>
+          ))}
 
-              {/* MARKETING CARD */}
-              <div ref={cardRef} style={{
-                background: "#fff", borderRadius: 20, overflow: "hidden",
-                boxShadow: "0 8px 40px rgba(13,27,42,.15)", border: "1px solid #E3DDD4",
-                fontFamily: "'Plus Jakarta Sans', sans-serif"
-              }}>
-                {/* TOP BAND */}
-                <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #1a2f45 100%)", padding: "28px 32px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Kshirsagar Hometextiles · Since 1947</div>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.2, marginBottom: 8 }}>{result.headline}</div>
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,.65)", fontStyle: "italic" }}>"{result.tagline}"</div>
-                  </div>
-                  {preview && <img src={preview} alt="product" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 12, border: "3px solid rgba(196,145,58,.4)", flexShrink: 0 }} />}
-                </div>
-
-                <div style={{ padding: "28px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-                  {/* LEFT COL */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    {/* Description */}
-                    <div>
-                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Product Overview</div>
-                      <p style={{ fontSize: 13, color: "#3a3a3a", lineHeight: 1.7, margin: 0 }}>{result.description}</p>
-                    </div>
-                    {/* Fabric observation */}
-                    <div style={{ background: "#F4F1EC", borderLeft: "3px solid #C4913A", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
-                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Fabric Analysis</div>
-                      <div style={{ fontSize: 12, color: "#555", lineHeight: 1.6 }}>{result.fabricObservation}</div>
-                    </div>
-                    {/* USPs */}
-                    <div>
-                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 10, textTransform: "uppercase" }}>Key Advantages</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                        {result.usp?.map((u, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#333" }}>
-                            <span style={{ color: "#C4913A", fontWeight: 800, marginTop: 1, flexShrink: 0 }}>✓</span>
-                            <span>{u}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT COL */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    {/* Specs table */}
-                    <div>
-                      <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 10, textTransform: "uppercase" }}>Specifications</div>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                        {[
-                          ["Quality", fields.quality],
-                          ["Border Style", fields.style],
-                          ["Design", fields.design],
-                          ["Size", fields.size],
-                          ["Weight", `${fields.weight} gms/pc`],
-                          ["GSM", gsm ? `${gsm} GSM` : "—"],
-                        ].map(([k, v], i) => (
-                          <tr key={k} style={{ background: i % 2 === 0 ? "#FAFAF9" : "#fff" }}>
-                            <td style={{ padding: "7px 10px", color: "#888", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "42%" }}>{k}</td>
-                            <td style={{ padding: "7px 10px", color: "#222", fontWeight: 700, borderBottom: "1px solid #F0EDE8", fontFamily: "Times New Roman, serif" }}>{v}</td>
-                          </tr>
-                        ))}
-                      </table>
-                    </div>
-                    {/* Target & Care */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      <div style={{ background: "#0D1B2A", borderRadius: 10, padding: "12px 16px" }}>
-                        <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Target Segment</div>
-                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{result.targetSegment}</div>
-                      </div>
-                      <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "12px 16px" }}>
-                        <div style={{ fontSize: 10, letterSpacing: ".15em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Care Instructions</div>
-                        <div style={{ fontSize: 12, color: "#555" }}>{result.careInstructions}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* FOOTER */}
-                <div style={{ background: "#F4F1EC", borderTop: "1px solid #E3DDD4", padding: "14px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 11, color: "#888" }}>
-                    <strong style={{ color: "#0D1B2A" }}>Kshirsagar Hometextiles</strong> · Solapur, Maharashtra · +91 98225 49824
-                  </div>
-                  <div style={{ fontSize: 11, color: "#C4913A", fontWeight: 700 }}>terrytowel.in</div>
-                </div>
+          {/* CATALOGUE FOOTER */}
+          {readyCount > 1 && (
+            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-mid)" }}>📋 {readyCount} product cards ready</div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print Full Catalogue</button>
+                {hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All to Drive</button>}
               </div>
             </div>
           )}
