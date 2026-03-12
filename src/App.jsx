@@ -2143,21 +2143,34 @@ function DrivePickerModal({ driveUrl, existingPhotos, onAdd, onClose }) {
   const [cats, setCats] = useState([]);
 
   useEffect(() => {
-    if (!driveUrl) { setError("Products Drive URL not configured. Go to Products module to set it up."); setLoading(false); return; }
-    fetch(`${driveUrl}?action=list&t=${Date.now()}`)
-      .then(r => r.json())
+    if (!driveUrl) {
+      setError("Products Drive URL not set. Go to Products module → ⚙️ Settings and configure the Drive URL first.");
+      setLoading(false);
+      return;
+    }
+    const url = `${driveUrl}?action=list&t=${Date.now()}`;
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        return r.json();
+      })
       .then(data => {
-        const imgs = data.files || data || [];
+        // Apps Script returns: { ok: true, images: [{id, name, cat, thumb, url, shareUrl}] }
+        if (data.ok === false) throw new Error(data.error || "Script returned ok:false");
+        const imgs = data.images || data.files || (Array.isArray(data) ? data : []);
         setImages(imgs);
-        const uniqueCats = [...new Set(imgs.map(i => i.category || i.cat || "Uncategorised").filter(Boolean))];
+        const uniqueCats = [...new Set(imgs.map(i => i.cat || i.category || "").filter(Boolean))].sort();
         setCats(uniqueCats);
         setLoading(false);
       })
-      .catch(() => { setError("Could not load from Drive. Check your Products Drive URL."); setLoading(false); });
+      .catch(e => {
+        setError(`Failed to load: ${e.message}`);
+        setLoading(false);
+      });
   }, []);
 
   const existingPreviews = new Set(existingPhotos.map(p => p.driveId).filter(Boolean));
-  const filtered = filter === "All" ? images : images.filter(i => (i.category || i.cat || "Uncategorised") === filter);
+  const filtered = filter === "All" ? images : images.filter(i => (i.cat || i.category || "Uncategorised") === filter);
 
   const toggle = (img) => {
     const id = img.id;
@@ -2166,19 +2179,13 @@ function DrivePickerModal({ driveUrl, existingPhotos, onAdd, onClose }) {
   };
 
   const confirm = async () => {
+    // Use Drive URLs directly as preview — no CORS fetch needed for display.
+    // base64 is fetched lazily in generateOne only for images that have a fetchable URL.
     const toAdd = images.filter(i => selected.has(i.id));
-    const newPhotos = [];
-    for (const img of toAdd) {
-      const url = img.url || `https://lh3.googleusercontent.com/d/${img.id}`;
-      try {
-        const resp = await fetch(url);
-        const blob = await resp.blob();
-        const base64 = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result.split(",")[1]); r.readAsDataURL(blob); });
-        newPhotos.push({ base64, mimeType: blob.type || "image/jpeg", preview: url, fromDrive: true, driveId: img.id, driveName: img.name });
-      } catch {
-        newPhotos.push({ base64: null, mimeType: "image/jpeg", preview: url, fromDrive: true, driveId: img.id, driveName: img.name });
-      }
-    }
+    const newPhotos = toAdd.map(img => {
+      const preview = img.thumb || img.url || img.shareUrl || `https://lh3.googleusercontent.com/d/${img.id}`;
+      return { base64: null, mimeType: "image/jpeg", preview, fromDrive: true, driveId: img.id, driveName: img.name, driveFileId: img.id };
+    });
     onAdd(newPhotos);
     onClose();
   };
@@ -2552,7 +2559,22 @@ function ProductDesignerModule() {
     const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
     const systemPrompt = `You are a luxury B2B hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), premium Indian exporter since 1947, Arch of Europe Gold Star Award winners. Create professional brochure copy. Return ONLY valid JSON (no markdown, no backticks):
 {"tagline":"6-8 word luxury tagline","headline":"3-5 word premium headline","description":"Three-sentence premium description for hotel procurement directors","usp":["USP1","USP2","USP3","USP4"],"fabricObservation":"Two sentences on fabric quality, weave, border, texture from photos","targetSegment":"Specific hospitality segment","careInstructions":"Hotel laundry care instructions","packagingNote":"Packaging & MOQ details","whatsappLine":"Punchy WhatsApp line for hotel buyer under 20 words"}`;
-    const imageContent = p.photos.filter(ph => ph.base64).slice(0, 4).map(ph => ({ type: "image", source: { type: "base64", media_type: ph.mimeType, data: ph.base64 } }));
+    // For Drive photos without base64 yet, try fetching via Apps Script proxy
+    const resolvedPhotos = await Promise.all(
+      p.photos.slice(0, 4).map(async ph => {
+        if (ph.base64) return ph;
+        if (!ph.driveFileId && !ph.driveId) return ph;
+        try {
+          // Ask Apps Script to return base64 for this Drive file
+          const fileId = ph.driveFileId || ph.driveId;
+          const r = await fetch(`${driveUrl}?action=getBase64&id=${fileId}&t=${Date.now()}`);
+          const d = await r.json();
+          if (d.base64) return { ...ph, base64: d.base64, mimeType: d.mimeType || ph.mimeType };
+        } catch {}
+        return ph; // keep without base64 — won't be sent to Claude but still in brochure
+      })
+    );
+    const imageContent = resolvedPhotos.filter(ph => ph.base64).map(ph => ({ type: "image", source: { type: "base64", media_type: ph.mimeType, data: ph.base64 } }));
     const userPrompt = `Quality: ${p.fields.quality}\nBorder: ${p.fields.style}\nDesign: ${p.fields.design}\nSize: ${p.fields.size}\nWeight: ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}${p.fields.price ? `\nPrice: ${p.fields.price}` : ""}\nPhotos: ${p.photos.length}\n${p.description ? `\nExtra details:\n${p.description}` : ""}\nAnalyse all photos and write premium brochure copy.`;
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
