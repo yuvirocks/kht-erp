@@ -2368,33 +2368,66 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
   if (!r) return null;
   const photos = p.photos;
   const main = photos[0];
-  const rest = photos.slice(1, 5);
   const showClient = !!(clientName || clientCompany);
   const showPrice = !!p.fields.price;
 
+  // Every photo always fully visible — layout adapts to count
+  const IMG = (ph, i, style = {}) => (
+    <img key={i} src={ph.preview} alt={`view ${i+1}`}
+      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...style }}
+      crossOrigin="anonymous" />
+  );
+
   const renderGallery = () => {
-    if (photos.length === 1) return <img src={main.preview} alt="product" style={{ width: "100%", height: 240, objectFit: "cover", display: "block" }} crossOrigin="anonymous" />;
-    if (photos.length === 2) return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
-        {photos.map((ph, i) => <img key={i} src={ph.preview} alt={`view ${i+1}`} style={{ width: "100%", height: 190, objectFit: "cover" }} crossOrigin="anonymous" />)}
+    const n = photos.length;
+
+    // 1 — full-width hero
+    if (n === 1) return (
+      <div style={{ height: 280 }}>{IMG(photos[0], 0, { height: "100%" })}</div>
+    );
+
+    // 2 — two equal columns
+    if (n === 2) return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, height: 240 }}>
+        {photos.map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i)}</div>)}
       </div>
     );
-    if (photos.length === 3) return (
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3, height: 240 }}>
-        <img src={main.preview} alt="main" style={{ gridRow: "1/3", width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
-        {rest.slice(0,2).map((ph, i) => <img key={i} src={ph.preview} alt={`view ${i+2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />)}
+
+    // 3 — large left + two stacked right
+    if (n === 3) return (
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 3, height: 260 }}>
+        <div style={{ overflow: "hidden" }}>{IMG(photos[0], 0)}</div>
+        <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 3 }}>
+          {photos.slice(1).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i+1)}</div>)}
+        </div>
       </div>
     );
-    return (
-      <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: 3, height: 260 }}>
-        <img src={main.preview} alt="main" style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
-        <div style={{ display: "grid", gridTemplateRows: `repeat(${Math.min(rest.length, 4)}, 1fr)`, gap: 3 }}>
-          {rest.slice(0,4).map((ph, i) => (
-            <div key={i} style={{ position: "relative", overflow: "hidden" }}>
-              <img src={ph.preview} alt={`view ${i+2}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
-              {i === 3 && rest.length > 4 && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>+{rest.length - 4}</div>}
-            </div>
-          ))}
+
+    // 4 — clean 2×2 grid, all equal
+    if (n === 4) return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3, height: 260 }}>
+        {photos.map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i)}</div>)}
+      </div>
+    );
+
+    // 5 — big hero left (full height) + right column of 4 in 2×2
+    if (n === 5) return (
+      <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 3, height: 280 }}>
+        <div style={{ overflow: "hidden" }}>{IMG(photos[0], 0)}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3 }}>
+          {photos.slice(1).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i+1)}</div>)}
+        </div>
+      </div>
+    );
+
+    // 6 — two rows of three (most balanced for a full product set)
+    if (n >= 6) return (
+      <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 3, height: 280 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
+          {photos.slice(0, 3).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i)}</div>)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
+          {photos.slice(3, 6).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i+3)}</div>)}
         </div>
       </div>
     );
