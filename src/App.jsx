@@ -2257,13 +2257,20 @@ function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate, driveUrl })
   const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
 
   const handleFiles = (files) => {
-    const arr = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, 6 - p.photos.length);
-    arr.forEach(file => {
+    const slots = 6 - p.photos.length;
+    if (slots <= 0) return;
+    const arr = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, slots);
+    // Read ALL files via Promise.all so we get one atomic onChange with all photos
+    Promise.all(arr.map(file => new Promise(resolve => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        onChange(idx, { photos: [...p.photos, { base64: e.target.result.split(",")[1], mimeType: file.type, preview: e.target.result }] });
-      };
+      reader.onload = e => resolve({
+        base64: e.target.result.split(",")[1],
+        mimeType: file.type,
+        preview: e.target.result
+      });
       reader.readAsDataURL(file);
+    }))).then(newPhotos => {
+      onChange(idx, { photos: [...p.photos, ...newPhotos] });
     });
   };
 
@@ -2865,33 +2872,52 @@ function ProductDesignerModule() {
       <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
       <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* A4 = 210 × 297 mm. We render the card at 794px wide then scale to fit.
+           794px ≈ 210mm @ 96dpi. scale(0.97) gives ~8px breathing room each side. */
         @page { size: A4 portrait; margin: 0; }
+
         html, body {
-          width: 210mm;
-          font-family: 'Plus Jakarta Sans', sans-serif;
+          margin: 0; padding: 0;
           background: #fff;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
+          color-adjust: exact;
         }
-        body { padding: 0; }
+
+        /* Each product = one self-contained scaled page */
         .brochure-page {
-          width: 210mm;
-          min-height: 297mm;
+          width: 794px;
           background: #fff;
-          position: relative;
-          overflow: visible;
+          /* Scale to fit A4 width with small margin */
+          transform: scale(0.97);
+          transform-origin: top left;
+          /* After scale the element still occupies 794px in flow, so
+             add negative margin to collapse the gap: 794 * (1-0.97) = ~24px */
+          margin-bottom: -24px;
+          page-break-after: always;
+          break-after: page;
         }
-        /* Allow content to break naturally — no hard clipping */
+        .brochure-page:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+
         [data-product-card] { width: 100%; }
-        /* Prevent awkward breaks inside key sections */
-        table { break-inside: avoid; }
-        .no-break { break-inside: avoid; }
-        /* Screen preview styles */
+
+        /* Never orphan the footer onto its own page */
+        [data-product-card] > div:last-child {
+          break-before: avoid;
+          page-break-before: avoid;
+        }
+
+        /* Screen preview */
         @media screen {
           body { background: #888; padding: 20px 0; }
           .brochure-page {
             margin: 0 auto 24px;
             box-shadow: 0 8px 40px rgba(0,0,0,.3);
+            transform: none;  /* no scale on screen — show actual size */
           }
         }
       </style>
