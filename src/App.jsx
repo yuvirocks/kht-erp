@@ -2140,15 +2140,15 @@ const EMPTY_ROW = () => ({
 
 /* ── Drive Picker — single select, fetches base64 at confirm time ── */
 function QuoteDrivePickerModal({ driveUrl, onPick, onClose }) {
-  const [imgs, setImgs]     = React.useState([]);
-  const [cats, setCats]     = React.useState([]);
-  const [selCat, setSelCat] = React.useState("ALL");
-  const [loading, setLoading] = React.useState(true);
-  const [fetching, setFetching] = React.useState(false);
-  const [sel, setSel]       = React.useState(null);
-  const [err, setErr]       = React.useState(null);
+  const [imgs, setImgs]     = useState([]);
+  const [cats, setCats]     = useState([]);
+  const [selCat, setSelCat] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
+  const [sel, setSel]       = useState(null);
+  const [err, setErr]       = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch(`${driveUrl}?action=list&t=${Date.now()}`)
       .then(r => r.json())
       .then(d => {
@@ -2265,8 +2265,8 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onClose }) {
 
 /* ── One product row in the editor ── */
 function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, driveUrl }) {
-  const fileRef = React.useRef();
-  const [showDrive, setShowDrive] = React.useState(false);
+  const fileRef = useRef();
+  const [showDrive, setShowDrive] = useState(false);
 
   const loadFile = file => {
     const reader = new FileReader();
@@ -2370,9 +2370,9 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
 function PictureQuotationModule() {
   const driveUrl = localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL;
 
-  const [rows, setRows] = React.useState([EMPTY_ROW(), EMPTY_ROW()]);
-  const [client, setClient] = React.useState({ name:"", company:"", address:"", phone:"" });
-  const [meta, setMeta] = React.useState({
+  const [rows, setRows] = useState([EMPTY_ROW(), EMPTY_ROW()]);
+  const [client, setClient] = useState({ name:"", company:"", address:"", phone:"" });
+  const [meta, setMeta] = useState({
     ref:      `KHT/${new Date().getFullYear()}/${String(Math.floor(Math.random()*900)+100)}`,
     date:     new Date().toISOString().slice(0,10),
     validity: "15 days",
@@ -2380,15 +2380,15 @@ function PictureQuotationModule() {
     showGst:  true,
     gstRate:  12,
   });
-  const [contacts, setContacts] = React.useState([]);
-  const [showContacts, setShowContacts] = React.useState(false);
-  const [contactSearch, setContactSearch] = React.useState("");
-  const [toast, setToast] = React.useState(null);
+  const [contacts, setContacts] = useState([]);
+  const [showContacts, setShowContacts] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [toast, setToast] = useState(null);
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3200); };
 
   /* Load contacts from dispatch webhook */
-  React.useEffect(() => {
+  useEffect(() => {
     const webhookUrl = localStorage.getItem("kht_webhook") || DEFAULT_WEBHOOK_URL;
     fetch(`${webhookUrl}?t=${Date.now()}`)
       .then(r => r.json())
