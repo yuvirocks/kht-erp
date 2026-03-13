@@ -455,6 +455,7 @@ body, #root {
 .dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--blue); animation: pulse 1.2s infinite; }
 .dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
 @keyframes pulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+@keyframes livepulse{0%,100%{box-shadow:0 0 0 3px rgba(48,209,88,.25)}50%{box-shadow:0 0 0 6px rgba(48,209,88,.08)}}
 
 /* ── WA BUTTON ── */
 .wa-btn {
@@ -730,7 +731,7 @@ function PrintOverlay({ printData, previewMode, onClose }) {
     <div className="print-overlay">
       {notif && <div className="notif">{notif}</div>}
       <div className="print-topbar">
-        <div style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: "#1A1A2E", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 20, fontWeight: 600, color: "var(--label)", display: "flex", alignItems: "center", gap: 10 }}>
           <Printer size={20} color="#C9A84C" />
           {previewMode === "envelope" ? "Envelope Preview" : "Dispatch Label Preview"}
         </div>
@@ -947,10 +948,10 @@ function DispatchModule({ showNotif }) {
       )}
 
       {showSettings && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", backdropFilter: "blur(8px)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="card" style={{ width: 420, padding: 24 }}>
             <div className="flex justify-b items-c mb4">
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>⚙️ Settings</div>
+              <div style={{ fontSize: 18, fontWeight: 600 }}>⚙️ Settings</div>
               <button className="btn btn-out btn-sm" onClick={() => setShowSettings(false)}><X size={14} /></button>
             </div>
             <label className="lbl">Google Sheet Webhook URL</label>
@@ -988,7 +989,7 @@ function DispatchModule({ showNotif }) {
             <div className="card">
               <div className="flex gap2 items-c mb3">
                 <div className="num-badge">1</div>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>Party Details</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Party Details</div>
               </div>
               <div className="form-row">
                 <div><label className="lbl">Contact Name *</label><input className="inp" placeholder="Full Name" value={recipient.name} onChange={e => setRecipient({ ...recipient, name: e.target.value })} /></div>
@@ -1010,7 +1011,7 @@ function DispatchModule({ showNotif }) {
               <div className="flex justify-b items-c mb3">
                 <div className="flex gap2 items-c">
                   <div className="num-badge">2</div>
-                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>Sample Items</div>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>Sample Items</div>
                 </div>
                 <div className="flex gap2">
                   <button className="btn btn-out btn-sm" onClick={() => setIsAddingType(!isAddingType)}><Settings size={12} /> Manage</button>
@@ -1051,7 +1052,7 @@ function DispatchModule({ showNotif }) {
             <div className="card">
               <div className="flex gap2 items-c mb3">
                 <div className="num-badge">3</div>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>Dispatch Info</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Dispatch Info</div>
               </div>
               <div className="form-row">
                 <div><label className="lbl">Dispatch Date</label><input className="inp" type="date" value={dispatchInfo.date} onChange={e => setDispatchInfo({ ...dispatchInfo, date: e.target.value })} /></div>
@@ -1081,19 +1082,19 @@ function DispatchModule({ showNotif }) {
           {/* RIGHT - Actions */}
           <div>
             <div className="card sticky-top" style={{ top: 0 }}>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Actions</div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Actions</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <button
                   onClick={async () => { await handlePrintForm(); }}
                   className="action-btn"
-                  style={{ background: "var(--gold)", color: "var(--navy)" }}
+                  style={{ background: "var(--blue-d)", color: "#fff" }}
                 >
                   <Printer size={18} /> Print Label & Save
                 </button>
                 <button
                   onClick={handlePrintEnvelope}
                   className="action-btn"
-                  style={{ background: "transparent", border: "2px solid var(--gold)", color: "var(--gold)" }}
+                  style={{ background: "var(--fill)", color: "var(--label)" }}
                 >
                   <Mail size={18} /> Print Envelope
                 </button>
@@ -1101,7 +1102,7 @@ function DispatchModule({ showNotif }) {
                   onClick={() => handleSave(false)}
                   disabled={isSaving}
                   className="action-btn"
-                  style={{ background: "var(--border-l)", border: "1px solid var(--border)", color: "var(--text-mid)" }}
+                  style={{ background: "var(--fill)", color: "var(--label2)" }}
                 >
                   <Save size={18} /> {isSaving ? "Saving…" : "Save Draft"}
                 </button>
@@ -1128,7 +1129,7 @@ function DispatchModule({ showNotif }) {
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", background: "#FAFBFC", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="flex gap3 items-c">
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 600 }}>Dispatch Log</div>
+              <div style={{ fontSize: 17, fontWeight: 600 }}>Dispatch Log</div>
               <span className="tag tag-gray">Google Sheet</span>
               <button className="btn btn-out btn-sm" onClick={fetchSheetHistory}>
                 <RefreshCw size={13} style={{ animation: isLoadingHistory ? "spin 1s linear infinite" : "none" }} /> Sync
@@ -1171,7 +1172,7 @@ function DispatchModule({ showNotif }) {
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", background: "#FAFBFC", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="flex gap3 items-c">
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 600 }}>All Contacts</div>
+              <div style={{ fontSize: 17, fontWeight: 600 }}>All Contacts</div>
               <button className="btn btn-out btn-sm" onClick={fetchSheetHistory}>
                 <RefreshCw size={13} style={{ animation: isLoadingHistory ? "spin 1s linear infinite" : "none" }} /> Refresh
               </button>
@@ -1311,8 +1312,7 @@ function HomeModule({ setActive }) {
             </div>
             <div style={{
               width: 8, height: 8, borderRadius: "50%", background: "var(--green)",
-              boxShadow: "0 0 0 3px rgba(48,209,88,.25)",
-              animation: "pulse 2s infinite"
+              animation: "livepulse 2s infinite"
             }} />
           </div>
 
@@ -1624,7 +1624,7 @@ function ProductsModule() {
       {!driveUrl && (
         <div className="card" style={{ textAlign: "center", padding: "48px 32px" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Connect Google Drive</div>
+          <div style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Connect Google Drive</div>
           <div className="text-sm text-lt" style={{ maxWidth: 420, margin: "0 auto 20px" }}>
             Deploy the Products Drive Apps Script, paste the URL here. Drive folders become product categories automatically.
           </div>
@@ -1833,7 +1833,7 @@ function ProductsModule() {
                   </div>
                 ))}
                 <div className="divider" />
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Share This Image</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Share This Image</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {shareOptions(selected).map(opt => (
                     <button key={opt.label} className="btn btn-out btn-full btn-sm" style={{ justifyContent: "flex-start", fontSize: 12 }} onClick={opt.action}>
@@ -1851,10 +1851,10 @@ function ProductsModule() {
 
       {/* ADD CATEGORY MODAL */}
       {showAddCat && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", backdropFilter: "blur(8px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="card" style={{ width: 380, boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>📁 New Category Folder</div>
+              <div style={{ fontSize: 18, fontWeight: 600 }}>📁 New Category Folder</div>
               <button className="btn btn-out btn-sm" onClick={() => { setShowAddCat(false); setNewCatName(""); }}><X size={14} /></button>
             </div>
             <div className="text-sm text-lt" style={{ marginBottom: 14 }}>
@@ -1881,10 +1881,10 @@ function ProductsModule() {
 
       {/* DRIVE SETTINGS MODAL */}
       {showSetup && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", backdropFilter: "blur(8px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div className="card" style={{ width: 520, maxWidth: "90vw", boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600 }}>🔗 Drive Settings</div>
+              <div style={{ fontSize: 18, fontWeight: 600 }}>🔗 Drive Settings</div>
               <button className="btn btn-out btn-sm" onClick={() => setShowSetup(false)}><X size={14} /></button>
             </div>
             <label className="lbl">Google Apps Script Deployment URL</label>
@@ -1932,7 +1932,7 @@ function CRMModule() {
       <div className="sh"><div className="st">👥 CRM & Sales</div><button className="btn btn-gold btn-sm">+ Add Customer</button></div>
       <div className="flex gap4" style={{ alignItems: "flex-start" }}>
         <div className="card" style={{ width: 252, flexShrink: 0 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Customers ({CUSTOMERS.length})</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Customers ({CUSTOMERS.length})</div>
           <input className="inp mb3" placeholder="🔍 Search…" />
           {CUSTOMERS.map(c => (
             <div key={c.id} className={`cust-row${sel?.id === c.id ? " sel" : ""}`} onClick={() => setSel(c)}>
@@ -1951,7 +1951,7 @@ function CRMModule() {
               <div className="flex gap3 items-c mb3">
                 <div className="avatar" style={{ width: 46, height: 46, fontSize: 16 }}>{sel.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 700 }}>{sel.name}</div>
+                  <div style={{ fontSize: 17, fontWeight: 700 }}>{sel.name}</div>
                   <div className="text-xs text-lt">{sel.biz} · {sel.city}</div>
                 </div>
                 <StatusTag s={sel.status} />
@@ -2111,7 +2111,7 @@ function DocumentsModule() {
           {sel ? <>
             <div className="flex justify-b items-c mb4">
               <div>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700 }}>{sel.name}</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{sel.name}</div>
                 <div className="flex gap2 mt2 items-c">
                   <span className={`tag ${sel.preview === "pdf" ? "tag-red" : sel.preview === "excel" ? "tag-green" : "tag-blue"}`}>{sel.preview.toUpperCase()}</span>
                   <span className="text-xs text-lt">{sel.size} · {sel.date} · {sel.cat}</span>
@@ -2130,7 +2130,7 @@ function DocumentsModule() {
               <button className="btn btn-gold mt2">👁️ Open Preview</button>
             </div>
             <div className="card mt4">
-              <div style={{ fontSize: 14, fontFamily: "'Fraunces', serif", fontWeight: 600, marginBottom: 10 }}>Quick Share</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Quick Share</div>
               <div className="flex gap2">
                 {["📧 Email", "💬 WhatsApp", "📋 Copy Link", "🖨️ Print"].map(a => <button key={a} className="btn btn-out btn-sm">{a}</button>)}
               </div>
