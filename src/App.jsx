@@ -2361,195 +2361,322 @@ function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate, driveUrl })
   );
 }
 
-/* ── Brochure Card ── */
+/* ── Brochure Card — A4 Design Brochure Layout ── */
 function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
   const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
   const r = p.result;
   if (!r) return null;
   const photos = p.photos;
-  const main = photos[0];
+  const n = photos.length;
   const showClient = !!(clientName || clientCompany);
   const showPrice = !!p.fields.price;
 
-  // Every photo always fully visible — layout adapts to count
-  const IMG = (ph, i, style = {}) => (
-    <img key={i} src={ph.preview} alt={`view ${i+1}`}
-      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...style }}
-      crossOrigin="anonymous" />
+  /* ── Image Gallery: every photo fully visible via objectFit:contain ── */
+  const CELL = (ph, i, extraStyle = {}) => (
+    <div key={i} style={{
+      background: "#F8F6F2",
+      overflow: "hidden",
+      position: "relative",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      ...extraStyle
+    }}>
+      <img
+        src={ph.preview}
+        alt={`view ${i + 1}`}
+        crossOrigin="anonymous"
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: "block",
+          padding: "6px"
+        }}
+      />
+      {i === 0 && n > 1 && (
+        <div style={{
+          position: "absolute", top: 6, left: 6,
+          background: "#C4913A", color: "#0D1B2A",
+          fontSize: 7.5, fontWeight: 800,
+          padding: "2px 7px", borderRadius: 3,
+          letterSpacing: ".08em", textTransform: "uppercase"
+        }}>Main</div>
+      )}
+    </div>
   );
 
   const renderGallery = () => {
-    const n = photos.length;
-
-    // 1 — full-width hero
+    // Heights tuned so the full gallery + info fits well on A4
     if (n === 1) return (
-      <div style={{ height: 280 }}>{IMG(photos[0], 0, { height: "100%" })}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 4, height: 320 }}>
+        {CELL(photos[0], 0)}
+      </div>
     );
 
-    // 2 — two equal columns
     if (n === 2) return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, height: 240 }}>
-        {photos.map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i)}</div>)}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, height: 280 }}>
+        {photos.map((ph, i) => CELL(ph, i))}
       </div>
     );
 
-    // 3 — large left + two stacked right
     if (n === 3) return (
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 3, height: 260 }}>
-        <div style={{ overflow: "hidden" }}>{IMG(photos[0], 0)}</div>
-        <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 3 }}>
-          {photos.slice(1).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i+1)}</div>)}
+      <div style={{ display: "grid", gap: 4 }}>
+        {/* Row 1: single large hero */}
+        <div style={{ height: 220 }}>{CELL(photos[0], 0)}</div>
+        {/* Row 2: two equal */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, height: 180 }}>
+          {photos.slice(1).map((ph, i) => CELL(ph, i + 1))}
         </div>
       </div>
     );
 
-    // 4 — clean 2×2 grid, all equal
     if (n === 4) return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3, height: 260 }}>
-        {photos.map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i)}</div>)}
+      <div style={{ display: "grid", gap: 4 }}>
+        {/* Row 1: hero + one */}
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 4, height: 210 }}>
+          {photos.slice(0, 2).map((ph, i) => CELL(ph, i))}
+        </div>
+        {/* Row 2: two equal */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, height: 170 }}>
+          {photos.slice(2).map((ph, i) => CELL(ph, i + 2))}
+        </div>
       </div>
     );
 
-    // 5 — big hero left (full height) + right column of 4 in 2×2
     if (n === 5) return (
-      <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 3, height: 280 }}>
-        <div style={{ overflow: "hidden" }}>{IMG(photos[0], 0)}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3 }}>
-          {photos.slice(1).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i+1)}</div>)}
+      <div style={{ display: "grid", gap: 4 }}>
+        {/* Row 1: hero (wide) + 1 */}
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 4, height: 200 }}>
+          {photos.slice(0, 2).map((ph, i) => CELL(ph, i))}
+        </div>
+        {/* Row 2: 3 equal */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, height: 165 }}>
+          {photos.slice(2).map((ph, i) => CELL(ph, i + 2))}
         </div>
       </div>
     );
 
-    // 6 — two rows of three (most balanced for a full product set)
+    // 6 photos — 3 columns × 2 rows, all equal, most balanced
     if (n >= 6) return (
-      <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: 3, height: 280 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
-          {photos.slice(0, 3).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i)}</div>)}
+      <div style={{ display: "grid", gap: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, height: 185 }}>
+          {photos.slice(0, 3).map((ph, i) => CELL(ph, i))}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
-          {photos.slice(3, 6).map((ph, i) => <div key={i} style={{ overflow: "hidden" }}>{IMG(ph, i+3)}</div>)}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, height: 185 }}>
+          {photos.slice(3, 6).map((ph, i) => CELL(ph, i + 3))}
         </div>
       </div>
     );
   };
 
   return (
-    <div data-product-card="true" style={{ background: "#fff", overflow: "hidden", fontFamily: "'Plus Jakarta Sans', sans-serif", pageBreakInside: "avoid" }}>
+    <div data-product-card="true" style={{
+      background: "#fff",
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+      width: "100%"
+    }}>
 
-      {/* TO / CLIENT BLOCK — only if filled */}
-      {showClient && (
-        <div style={{ background: "#F9F6F0", borderBottom: "2px solid #C4913A", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontSize: 8.5, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>To</div>
-            {clientName && <div style={{ fontSize: 14, fontWeight: 800, color: "#0D1B2A" }}>{clientName}</div>}
-            {clientCompany && <div style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{clientCompany}</div>}
+      {/* ══ TOP STRIP: Company + Client ══ */}
+      <div style={{
+        background: "#0D1B2A",
+        padding: "12px 28px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between"
+      }}>
+        <div>
+          <div style={{ fontSize: 7.5, letterSpacing: ".22em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase" }}>
+            Kshirsagar Hometextiles · Est. 1947 · Solapur, India
           </div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,.4)", marginTop: 2 }}>
+            terrytowel.in · +91 98225 49824 · info@kshirsagar.com
+          </div>
+        </div>
+        {showClient ? (
           <div style={{ textAlign: "right" }}>
-            {quoteRef && <div style={{ fontSize: 11, color: "#888", marginBottom: 3 }}>Ref: <strong style={{ color: "#0D1B2A" }}>{quoteRef}</strong></div>}
-            <div style={{ fontSize: 11, color: "#888" }}>Date: <strong style={{ color: "#0D1B2A" }}>{quoteDate || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong></div>
+            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Prepared For</div>
+            {clientName && <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{clientName}</div>}
+            {clientCompany && <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)", fontWeight: 500 }}>{clientCompany}</div>}
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", marginTop: 3 }}>
+              {quoteRef ? `Ref: ${quoteRef} · ` : ""}
+              {quoteDate ? new Date(quoteDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", fontStyle: "italic" }}>
+            Arch of Europe Gold Star Award · Since 1947
+          </div>
+        )}
+      </div>
+
+      {/* ══ PRODUCT TITLE BAND ══ */}
+      <div style={{
+        background: "linear-gradient(135deg, #F4F1EC 0%, #EDE8DF 100%)",
+        borderBottom: "3px solid #C4913A",
+        padding: "16px 28px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 700, color: "#0D1B2A", lineHeight: 1.1, marginBottom: 5 }}>
+            {r.headline}
+          </div>
+          <div style={{ fontSize: 11.5, color: "#7A6E62", fontStyle: "italic", marginBottom: 8 }}>
+            "{r.tagline}"
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ background: "#0D1B2A", color: "#C4913A", fontSize: 9.5, fontWeight: 700, padding: "3px 12px", borderRadius: 20, letterSpacing: ".05em" }}>
+              {r.targetSegment}
+            </span>
+            {p.fields.quality && (
+              <span style={{ background: "transparent", border: "1.5px solid #C4913A", color: "#8B6520", fontSize: 9.5, fontWeight: 600, padding: "3px 12px", borderRadius: 20 }}>
+                {p.fields.quality}
+              </span>
+            )}
           </div>
         </div>
-      )}
-
-      {/* PHOTO GALLERY */}
-      <div style={{ overflow: "hidden" }}>{renderGallery()}</div>
-
-      {/* HEADER BAND */}
-      <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #162536 100%)", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 8, letterSpacing: ".22em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Kshirsagar Hometextiles · Est. 1947 · Solapur, India</div>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1.15, marginBottom: 4 }}>{r.headline}</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,.55)", fontStyle: "italic" }}>"{r.tagline}"</div>
-        </div>
-        <div style={{ flexShrink: 0, textAlign: "right" }}>
-          <div style={{ background: "#C4913A", color: "#0D1B2A", padding: "5px 13px", borderRadius: 20, fontSize: 10, fontWeight: 800, marginBottom: 5, display: "inline-block" }}>{r.targetSegment}</div>
-          {showPrice && (
-            <div style={{ background: "rgba(255,255,255,.12)", border: "1px solid rgba(196,145,58,.5)", borderRadius: 10, padding: "6px 14px", textAlign: "center", marginTop: 4 }}>
-              <div style={{ fontSize: 8, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 2 }}>Price</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#C4913A", fontFamily: "Times New Roman, serif" }}>{p.fields.price}</div>
+        {showPrice && (
+          <div style={{
+            background: "#0D1B2A",
+            borderRadius: 12,
+            padding: "14px 20px",
+            textAlign: "center",
+            flexShrink: 0,
+            minWidth: 110,
+            border: "2px solid #C4913A"
+          }}>
+            <div style={{ fontSize: 7.5, color: "#C4913A", fontWeight: 700, letterSpacing: ".15em", textTransform: "uppercase", marginBottom: 4 }}>
+              Price
             </div>
-          )}
+            <div style={{ fontFamily: "Times New Roman, serif", fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
+              {p.fields.price}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══ IMAGE GALLERY ══ */}
+      <div style={{ padding: "16px 20px", background: "#FDFCFA" }}>
+        <div style={{ fontSize: 7.5, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>
+          Product Gallery · {n} Photo{n > 1 ? "s" : ""}
+        </div>
+        <div style={{ border: "1px solid #EDE9E1", borderRadius: 8, overflow: "hidden" }}>
+          {renderGallery()}
         </div>
       </div>
 
-      {/* BODY */}
-      <div style={{ padding: "20px 28px", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 22 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase", borderBottom: "1px solid #EDE9E1", paddingBottom: 4 }}>Product Overview</div>
-            <p style={{ fontSize: 12, color: "#2a2a2a", lineHeight: 1.75, margin: 0 }}>{r.description}</p>
+      {/* ══ BODY: Info ══ */}
+      <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 20 }}>
+
+        {/* LEFT: Description + Fabric + USPs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ background: "#F8F6F2", borderRadius: 10, padding: "14px 16px", borderLeft: "4px solid #C4913A" }}>
+            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 7, textTransform: "uppercase" }}>Product Overview</div>
+            <p style={{ fontSize: 11.5, color: "#2a2a2a", lineHeight: 1.8, margin: 0 }}>{r.description}</p>
           </div>
+
           {r.fabricObservation && (
-            <div style={{ background: "linear-gradient(135deg, #F9F6F0, #F4F1EC)", border: "1px solid #E3DDD4", borderLeft: "4px solid #C4913A", borderRadius: "0 10px 10px 0", padding: "10px 14px" }}>
-              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Fabric Analysis</div>
-              <div style={{ fontSize: 11, color: "#444", lineHeight: 1.65, fontStyle: "italic" }}>{r.fabricObservation}</div>
+            <div style={{ background: "#fff", border: "1px solid #E3DDD4", borderRadius: 10, padding: "12px 16px" }}>
+              <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Fabric Analysis</div>
+              <div style={{ fontSize: 11, color: "#555", lineHeight: 1.7, fontStyle: "italic" }}>{r.fabricObservation}</div>
             </div>
           )}
+
           <div>
-            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", borderBottom: "1px solid #EDE9E1", paddingBottom: 4 }}>Key Advantages</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 10px" }}>
+            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", paddingBottom: 5, borderBottom: "1px solid #EDE9E1" }}>Key Advantages</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
               {r.usp?.map((u, i) => (
                 <div key={i} style={{ display: "flex", gap: 7, fontSize: 11, color: "#333", alignItems: "flex-start" }}>
-                  <span style={{ color: "#C4913A", fontWeight: 800, fontSize: 11, flexShrink: 0, marginTop: 1 }}>✓</span>
-                  <span style={{ lineHeight: 1.5 }}>{u}</span>
+                  <span style={{ color: "#C4913A", fontWeight: 900, fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>✓</span>
+                  <span style={{ lineHeight: 1.55 }}>{u}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* RIGHT: Specs + Care + Packaging + Contact */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 7, textTransform: "uppercase", borderBottom: "1px solid #EDE9E1", paddingBottom: 4 }}>Specifications</div>
+            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 7, textTransform: "uppercase", paddingBottom: 5, borderBottom: "1px solid #EDE9E1" }}>Specifications</div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              {[
-                ["Quality", p.fields.quality],
-                ["Border Style", p.fields.style],
-                ["Design", p.fields.design],
-                ["Size", p.fields.size],
-                ["Weight", `${p.fields.weight} gms / pc`],
-                ["GSM", gsm ? `${gsm} GSM` : "—"],
-                ...(showPrice ? [["Price", p.fields.price]] : []),
-              ].map(([k, v], i) => (
-                <tr key={k} style={{ background: i % 2 === 0 ? "#FAFAF8" : "#fff" }}>
-                  <td style={{ padding: "6px 8px", color: "#888", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "44%", fontSize: 10.5 }}>{k}</td>
-                  <td style={{ padding: "6px 8px", color: k === "Price" ? "#C4913A" : "#111", fontWeight: k === "Price" ? 800 : 700, borderBottom: "1px solid #F0EDE8", fontFamily: "Times New Roman, serif", fontSize: k === "Price" ? 13 : 11.5 }}>{v}</td>
-                </tr>
-              ))}
+              <tbody>
+                {[
+                  ["Quality", p.fields.quality],
+                  ["Border Style", p.fields.style],
+                  ["Design", p.fields.design],
+                  ["Size", p.fields.size],
+                  ["Weight", `${p.fields.weight} gms / pc`],
+                  ["GSM", gsm ? `${gsm} GSM` : "—"],
+                  ...(showPrice ? [["Price", p.fields.price]] : []),
+                ].map(([k, v], i) => (
+                  <tr key={k} style={{ background: i % 2 === 0 ? "#FAFAF8" : "#fff" }}>
+                    <td style={{ padding: "6px 9px", color: "#999", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "44%", fontSize: 10 }}>{k}</td>
+                    <td style={{
+                      padding: "6px 9px",
+                      color: k === "Price" ? "#C4913A" : "#111",
+                      fontWeight: k === "Price" ? 800 : 700,
+                      borderBottom: "1px solid #F0EDE8",
+                      fontFamily: k === "Price" || k === "GSM" || k === "Weight" ? "Times New Roman, serif" : "inherit",
+                      fontSize: k === "Price" ? 13 : 11
+                    }}>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
+
           {r.careInstructions && (
-            <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "10px 14px", border: "1px solid #E3DDD4" }}>
-              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Care Instructions</div>
-              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.6 }}>{r.careInstructions}</div>
+            <div style={{ background: "#F4F1EC", borderRadius: 9, padding: "10px 13px", border: "1px solid #E3DDD4" }}>
+              <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Care Instructions</div>
+              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.65 }}>{r.careInstructions}</div>
             </div>
           )}
+
           {r.packagingNote && (
-            <div style={{ background: "#F4F1EC", borderRadius: 10, padding: "10px 14px", border: "1px solid #E3DDD4" }}>
-              <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Packaging & MOQ</div>
-              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.6 }}>{r.packagingNote}</div>
+            <div style={{ background: "#F4F1EC", borderRadius: 9, padding: "10px 13px", border: "1px solid #E3DDD4" }}>
+              <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Packaging & MOQ</div>
+              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.65 }}>{r.packagingNote}</div>
             </div>
           )}
-          <div style={{ background: "#0D1B2A", borderRadius: 10, padding: "12px 14px" }}>
-            <div style={{ fontSize: 8.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Contact Us</div>
-            <div style={{ fontSize: 10.5, color: "#fff", fontWeight: 600, marginBottom: 2 }}>Kshirsagar Hometextiles</div>
-            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.5)", lineHeight: 1.6 }}>Nath Pride, Near Civil Hospital, Civil Chowk, Solapur — 413003</div>
-            <div style={{ marginTop: 6, display: "flex", gap: 12 }}>
+
+          <div style={{ background: "#0D1B2A", borderRadius: 9, padding: "12px 14px", marginTop: "auto" }}>
+            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Get in Touch</div>
+            <div style={{ fontSize: 11, color: "#fff", fontWeight: 700, marginBottom: 2 }}>Kshirsagar Hometextiles</div>
+            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.45)", lineHeight: 1.65 }}>Nath Pride, Near Civil Hospital<br />Civil Chowk, Solapur — 413003</div>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
               <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>📞 +91 98225 49824</div>
+              <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>✉️ info@kshirsagar.com</div>
               <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>🌐 terrytowel.in</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* FOOTER */}
-      <div style={{ background: "#C4913A", padding: "9px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 9, color: "#0D1B2A", fontWeight: 700, letterSpacing: ".04em" }}>GST: 27ANLPK9383J1Z8 · info@kshirsagar.com</div>
-        <div style={{ fontSize: 9.5, color: "#0D1B2A", fontWeight: 800, letterSpacing: ".1em" }}>TERRYTOWEL.IN</div>
+      {/* ══ FOOTER ══ */}
+      <div style={{
+        background: "#C4913A",
+        padding: "8px 28px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
+        <div style={{ fontSize: 8.5, color: "#0D1B2A", fontWeight: 700, letterSpacing: ".04em" }}>
+          GST: 27ANLPK9383J1Z8 · info@kshirsagar.com
+        </div>
+        <div style={{ fontSize: 9, color: "#0D1B2A", fontWeight: 900, letterSpacing: ".12em" }}>
+          TERRYTOWEL.IN
+        </div>
       </div>
     </div>
   );
 }
+
 
 function ProductDesignerModule() {
   const [products, setProducts] = useState([EMPTY_PRODUCT()]);
@@ -2664,25 +2791,48 @@ function ProductDesignerModule() {
     const cards = document.querySelectorAll("[data-product-card='true']");
     if (!cards.length) { showToast("Generate at least one card first."); return; }
     const win = window.open("", "_blank");
-    const clientHeader = (clientName || clientCompany) ? `
-      <div style="background:#F9F6F0;border:2px solid #C4913A;border-radius:12px;padding:20px 28px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-size:9px;letter-spacing:.2em;color:#C4913A;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Prepared For</div>
-          ${clientName ? `<div style="font-size:18px;font-weight:800;color:#0D1B2A;">${clientName}</div>` : ""}
-          ${clientCompany ? `<div style="font-size:13px;color:#555;font-weight:600;">${clientCompany}</div>` : ""}
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">${quoteRef ? `Ref: <strong style="color:#0D1B2A">${quoteRef}</strong><br>` : ""}Date: <strong style="color:#0D1B2A">${quoteDate || new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
-          <div style="font-size:9px;color:#C4913A;font-weight:700;">KSHIRSAGAR HOMETEXTILES · SINCE 1947</div>
-        </div>
-      </div>` : "";
-    const html = Array.from(cards).map(c => `<div style="border-radius:12px;overflow:hidden;border:1px solid #E3DDD4;margin-bottom:24px;box-shadow:0 4px 20px rgba(0,0,0,.08);">${c.outerHTML}</div>`).join("");
-    win.document.write(`<html><head><title>KHT${clientName ? ` · ${clientName}` : ""} · terrytowel.in</title>
+    const cardHTMLs = Array.from(cards).map((c, idx) =>
+      `<div class="brochure-page" ${idx > 0 ? 'style="page-break-before:always;"' : ''}>${c.outerHTML}</div>`
+    ).join("");
+    win.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="utf-8">
+      <title>KHT${clientName ? ` · ${clientName}` : ""} · terrytowel.in</title>
       <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-      <style>*{box-sizing:border-box;}body{margin:0;padding:24px;font-family:'Plus Jakarta Sans',sans-serif;background:#F4F1EC;}.wrap{max-width:800px;margin:0 auto;}@page{size:A4;margin:10mm;}@media print{body{padding:0;background:#fff;}}</style>
-      </head><body><div class="wrap">${clientHeader}${html}</div></body></html>`);
+      <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        @page { size: A4 portrait; margin: 0; }
+        html, body {
+          width: 210mm;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          background: #fff;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        body { padding: 0; }
+        .brochure-page {
+          width: 210mm;
+          min-height: 297mm;
+          background: #fff;
+          position: relative;
+          overflow: visible;
+        }
+        /* Allow content to break naturally — no hard clipping */
+        [data-product-card] { width: 100%; }
+        /* Prevent awkward breaks inside key sections */
+        table { break-inside: avoid; }
+        .no-break { break-inside: avoid; }
+        /* Screen preview styles */
+        @media screen {
+          body { background: #888; padding: 20px 0; }
+          .brochure-page {
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 40px rgba(0,0,0,.3);
+          }
+        }
+      </style>
+    </head><body>${cardHTMLs}</body></html>`);
     win.document.close();
-    setTimeout(() => { win.focus(); win.print(); }, 900);
+    setTimeout(() => { win.focus(); win.print(); }, 1200);
   };
 
   const saveAllToDrive = async () => {
