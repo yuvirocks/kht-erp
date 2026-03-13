@@ -2371,102 +2371,135 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
   const showClient = !!(clientName || clientCompany);
   const showPrice = !!p.fields.price;
 
-  /* ── Image Gallery: every photo fully visible via objectFit:contain ── */
-  const CELL = (ph, i, extraStyle = {}) => (
+  /*
+   * CELL — uses objectFit:contain so the FULL product is always visible (no cropping).
+   * Cream background fills any letterbox gaps cleanly.
+   * All cells use position:absolute img pattern — zero stretching possible.
+   */
+  const CELL = (ph, i, aspectH, aspectW = "100%") => (
     <div key={i} style={{
-      background: "#F8F6F2",
-      overflow: "hidden",
       position: "relative",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      ...extraStyle
+      width: aspectW,
+      height: aspectH,
+      flexShrink: 0,
+      overflow: "hidden",
+      background: "#F5F2ED",   /* warm cream — matches product card background */
     }}>
       <img
         src={ph.preview}
         alt={`view ${i + 1}`}
         crossOrigin="anonymous"
         style={{
-          maxWidth: "100%",
-          maxHeight: "100%",
+          position: "absolute",
+          inset: 0,
           width: "100%",
           height: "100%",
-          objectFit: "contain",
+          objectFit: "contain",   /* show full product, no cropping */
+          objectPosition: "center",
           display: "block",
-          padding: "6px"
         }}
       />
+      {/* Thin gold frame on main photo */}
       {i === 0 && n > 1 && (
         <div style={{
-          position: "absolute", top: 6, left: 6,
-          background: "#C4913A", color: "#0D1B2A",
-          fontSize: 7.5, fontWeight: 800,
-          padding: "2px 7px", borderRadius: 3,
-          letterSpacing: ".08em", textTransform: "uppercase"
-        }}>Main</div>
+          position: "absolute", inset: 0,
+          boxShadow: "inset 0 0 0 2px rgba(196,145,58,0.5)",
+          pointerEvents: "none"
+        }} />
       )}
+      {/* Photo number */}
+      <div style={{
+        position: "absolute", bottom: 5, right: 6,
+        background: "rgba(13,27,42,0.65)", color: "#C4913A",
+        fontSize: 8.5, fontWeight: 800,
+        width: 18, height: 18, borderRadius: "50%",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        backdropFilter: "blur(3px)"
+      }}>{i + 1}</div>
     </div>
   );
 
+  const GAP = 4; /* px gap between cells */
+
   const renderGallery = () => {
-    // Heights tuned so the full gallery + info fits well on A4
+
+    /* ── 1 photo: tall hero ── */
     if (n === 1) return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 4, height: 320 }}>
-        {CELL(photos[0], 0)}
+      <div style={{ height: 340 }}>
+        {CELL(photos[0], 0, 340)}
       </div>
     );
 
+    /* ── 2 photos: equal side-by-side ── */
     if (n === 2) return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, height: 280 }}>
-        {photos.map((ph, i) => CELL(ph, i))}
+      <div style={{ display: "flex", gap: GAP, height: 300 }}>
+        {photos.map((ph, i) => (
+          <div key={i} style={{ flex: 1, height: 300 }}>{CELL(ph, i, 300)}</div>
+        ))}
       </div>
     );
 
+    /* ── 3 photos: large top hero + two equal below ── */
     if (n === 3) return (
-      <div style={{ display: "grid", gap: 4 }}>
-        {/* Row 1: single large hero */}
-        <div style={{ height: 220 }}>{CELL(photos[0], 0)}</div>
-        {/* Row 2: two equal */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, height: 180 }}>
-          {photos.slice(1).map((ph, i) => CELL(ph, i + 1))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+        <div style={{ height: 220 }}>{CELL(photos[0], 0, 220)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 180 }}>
+          {photos.slice(1).map((ph, i) => (
+            <div key={i} style={{ flex: 1, height: 180 }}>{CELL(ph, i + 1, 180)}</div>
+          ))}
         </div>
       </div>
     );
 
+    /* ── 4 photos: 2×2 grid — all equal, most balanced ── */
     if (n === 4) return (
-      <div style={{ display: "grid", gap: 4 }}>
-        {/* Row 1: hero + one */}
-        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 4, height: 210 }}>
-          {photos.slice(0, 2).map((ph, i) => CELL(ph, i))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+        <div style={{ display: "flex", gap: GAP, height: 195 }}>
+          {photos.slice(0, 2).map((ph, i) => (
+            <div key={i} style={{ flex: 1, height: 195 }}>{CELL(ph, i, 195)}</div>
+          ))}
         </div>
-        {/* Row 2: two equal */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, height: 170 }}>
-          {photos.slice(2).map((ph, i) => CELL(ph, i + 2))}
+        <div style={{ display: "flex", gap: GAP, height: 195 }}>
+          {photos.slice(2).map((ph, i) => (
+            <div key={i} style={{ flex: 1, height: 195 }}>{CELL(ph, i + 2, 195)}</div>
+          ))}
         </div>
       </div>
     );
 
+    /* ── 5 photos: wide hero top row + three equal bottom row ── */
     if (n === 5) return (
-      <div style={{ display: "grid", gap: 4 }}>
-        {/* Row 1: hero (wide) + 1 */}
-        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 4, height: 200 }}>
-          {photos.slice(0, 2).map((ph, i) => CELL(ph, i))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+        {/* Row 1: hero (58%) + secondary (42%) — both same height */}
+        <div style={{ display: "flex", gap: GAP, height: 220 }}>
+          <div style={{ flex: "0 0 58%", height: 220 }}>{CELL(photos[0], 0, 220)}</div>
+          <div style={{ flex: 1, height: 220 }}>{CELL(photos[1], 1, 220)}</div>
         </div>
-        {/* Row 2: 3 equal */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, height: 165 }}>
-          {photos.slice(2).map((ph, i) => CELL(ph, i + 2))}
+        {/* Row 2: three equal thumbnails */}
+        <div style={{ display: "flex", gap: GAP, height: 160 }}>
+          {photos.slice(2).map((ph, i) => (
+            <div key={i} style={{ flex: 1, height: 160 }}>{CELL(ph, i + 2, 160)}</div>
+          ))}
         </div>
       </div>
     );
 
-    // 6 photos — 3 columns × 2 rows, all equal, most balanced
+    /* ── 6 photos: luxury lookbook — all 6 clearly shown ──
+       Row 1: hero(62%) + tall secondary(38%) — prominent pair
+       Row 2: four equal thumbnails in a strip
+    */
     if (n >= 6) return (
-      <div style={{ display: "grid", gap: 4 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, height: 185 }}>
-          {photos.slice(0, 3).map((ph, i) => CELL(ph, i))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+        {/* Row 1: two dominant images */}
+        <div style={{ display: "flex", gap: GAP, height: 210 }}>
+          <div style={{ flex: "0 0 62%", height: 210 }}>{CELL(photos[0], 0, 210)}</div>
+          <div style={{ flex: 1, height: 210 }}>{CELL(photos[1], 1, 210)}</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, height: 185 }}>
-          {photos.slice(3, 6).map((ph, i) => CELL(ph, i + 3))}
+        {/* Row 2: four equal supporting shots */}
+        <div style={{ display: "flex", gap: GAP, height: 145 }}>
+          {photos.slice(2, 6).map((ph, i) => (
+            <div key={i} style={{ flex: 1, height: 145 }}>{CELL(ph, i + 2, 145)}</div>
+          ))}
         </div>
       </div>
     );
