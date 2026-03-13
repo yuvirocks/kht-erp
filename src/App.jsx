@@ -2372,18 +2372,18 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
   const showPrice = !!p.fields.price;
 
   /*
-   * CELL — uses objectFit:contain so the FULL product is always visible (no cropping).
-   * Cream background fills any letterbox gaps cleanly.
-   * All cells use position:absolute img pattern — zero stretching possible.
+   * CELL — objectFit:cover fills every tile edge-to-edge with zero gaps.
+   * Fixed height passed explicitly — flex/grid wrappers must also set same height.
+   * position:absolute img pattern prevents any browser stretch.
    */
-  const CELL = (ph, i, aspectH, aspectW = "100%") => (
+  const CELL = (ph, i, h) => (
     <div key={i} style={{
       position: "relative",
-      width: aspectW,
-      height: aspectH,
-      flexShrink: 0,
+      width: "100%",
+      height: h,
       overflow: "hidden",
-      background: "#F5F2ED",   /* warm cream — matches product card background */
+      flexShrink: 0,
+      background: "#111",
     }}>
       <img
         src={ph.preview}
@@ -2394,112 +2394,110 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
           inset: 0,
           width: "100%",
           height: "100%",
-          objectFit: "contain",   /* show full product, no cropping */
+          objectFit: "cover",
           objectPosition: "center",
           display: "block",
         }}
       />
-      {/* Thin gold frame on main photo */}
+      {/* Subtle bottom gradient for depth */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.22) 100%)",
+        pointerEvents: "none"
+      }} />
+      {/* Main badge on first photo */}
       {i === 0 && n > 1 && (
         <div style={{
-          position: "absolute", inset: 0,
-          boxShadow: "inset 0 0 0 2px rgba(196,145,58,0.5)",
-          pointerEvents: "none"
-        }} />
+          position: "absolute", top: 8, left: 8,
+          background: "rgba(196,145,58,0.95)", color: "#0D1B2A",
+          fontSize: 7, fontWeight: 900, padding: "2px 8px",
+          borderRadius: 3, letterSpacing: ".1em", textTransform: "uppercase"
+        }}>Main</div>
       )}
-      {/* Photo number */}
+      {/* Photo number dot */}
       <div style={{
-        position: "absolute", bottom: 5, right: 6,
-        background: "rgba(13,27,42,0.65)", color: "#C4913A",
-        fontSize: 8.5, fontWeight: 800,
-        width: 18, height: 18, borderRadius: "50%",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        backdropFilter: "blur(3px)"
+        position: "absolute", bottom: 6, right: 7,
+        background: "rgba(13,27,42,0.7)", color: "#C4913A",
+        fontSize: 8, fontWeight: 800,
+        width: 17, height: 17, borderRadius: "50%",
+        display: "flex", alignItems: "center", justifyContent: "center"
       }}>{i + 1}</div>
     </div>
   );
 
-  const GAP = 4; /* px gap between cells */
+  const GAP = 2; /* 2px = thin visible separator line, no breathing room */
 
+  /*
+   * renderGallery — every wrapper div has explicit height = sum of its children.
+   * CELL always receives explicit px height. No flex auto-sizing can stretch anything.
+   */
   const renderGallery = () => {
 
-    /* ── 1 photo: tall hero ── */
-    if (n === 1) return (
-      <div style={{ height: 340 }}>
-        {CELL(photos[0], 0, 340)}
-      </div>
-    );
+    /* 1 — cinematic hero */
+    if (n === 1) return <div style={{ lineHeight: 0 }}>{CELL(photos[0], 0, 340)}</div>;
 
-    /* ── 2 photos: equal side-by-side ── */
+    /* 2 — equal side-by-side, no gap between them */
     if (n === 2) return (
-      <div style={{ display: "flex", gap: GAP, height: 300 }}>
-        {photos.map((ph, i) => (
-          <div key={i} style={{ flex: 1, height: 300 }}>{CELL(ph, i, 300)}</div>
-        ))}
+      <div style={{ display: "flex", gap: GAP, lineHeight: 0 }}>
+        <div style={{ flex: 1, height: 300, overflow: "hidden" }}>{CELL(photos[0], 0, 300)}</div>
+        <div style={{ flex: 1, height: 300, overflow: "hidden" }}>{CELL(photos[1], 1, 300)}</div>
       </div>
     );
 
-    /* ── 3 photos: large top hero + two equal below ── */
+    /* 3 — wide hero top (full width) + two equal below */
     if (n === 3) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-        <div style={{ height: 220 }}>{CELL(photos[0], 0, 220)}</div>
-        <div style={{ display: "flex", gap: GAP, height: 180 }}>
-          {photos.slice(1).map((ph, i) => (
-            <div key={i} style={{ flex: 1, height: 180 }}>{CELL(ph, i + 1, 180)}</div>
-          ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
+        <div style={{ height: 210, overflow: "hidden" }}>{CELL(photos[0], 0, 210)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 175 }}>
+          <div style={{ flex: 1, height: 175, overflow: "hidden" }}>{CELL(photos[1], 1, 175)}</div>
+          <div style={{ flex: 1, height: 175, overflow: "hidden" }}>{CELL(photos[2], 2, 175)}</div>
         </div>
       </div>
     );
 
-    /* ── 4 photos: 2×2 grid — all equal, most balanced ── */
+    /* 4 — 2×2 perfect grid */
     if (n === 4) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-        <div style={{ display: "flex", gap: GAP, height: 195 }}>
-          {photos.slice(0, 2).map((ph, i) => (
-            <div key={i} style={{ flex: 1, height: 195 }}>{CELL(ph, i, 195)}</div>
-          ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
+        <div style={{ display: "flex", gap: GAP, height: 190 }}>
+          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[0], 0, 190)}</div>
+          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[1], 1, 190)}</div>
         </div>
-        <div style={{ display: "flex", gap: GAP, height: 195 }}>
-          {photos.slice(2).map((ph, i) => (
-            <div key={i} style={{ flex: 1, height: 195 }}>{CELL(ph, i + 2, 195)}</div>
-          ))}
+        <div style={{ display: "flex", gap: GAP, height: 190 }}>
+          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[2], 2, 190)}</div>
+          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[3], 3, 190)}</div>
         </div>
       </div>
     );
 
-    /* ── 5 photos: wide hero top row + three equal bottom row ── */
+    /* 5 — hero+1 top, three strip bottom */
     if (n === 5) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-        {/* Row 1: hero (58%) + secondary (42%) — both same height */}
-        <div style={{ display: "flex", gap: GAP, height: 220 }}>
-          <div style={{ flex: "0 0 58%", height: 220 }}>{CELL(photos[0], 0, 220)}</div>
-          <div style={{ flex: 1, height: 220 }}>{CELL(photos[1], 1, 220)}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
+        <div style={{ display: "flex", gap: GAP, height: 215 }}>
+          <div style={{ flex: "0 0 60%", height: 215, overflow: "hidden" }}>{CELL(photos[0], 0, 215)}</div>
+          <div style={{ flex: 1,          height: 215, overflow: "hidden" }}>{CELL(photos[1], 1, 215)}</div>
         </div>
-        {/* Row 2: three equal thumbnails */}
-        <div style={{ display: "flex", gap: GAP, height: 160 }}>
-          {photos.slice(2).map((ph, i) => (
-            <div key={i} style={{ flex: 1, height: 160 }}>{CELL(ph, i + 2, 160)}</div>
-          ))}
+        <div style={{ display: "flex", gap: GAP, height: 155 }}>
+          <div style={{ flex: 1, height: 155, overflow: "hidden" }}>{CELL(photos[2], 2, 155)}</div>
+          <div style={{ flex: 1, height: 155, overflow: "hidden" }}>{CELL(photos[3], 3, 155)}</div>
+          <div style={{ flex: 1, height: 155, overflow: "hidden" }}>{CELL(photos[4], 4, 155)}</div>
         </div>
       </div>
     );
 
-    /* ── 6 photos: luxury lookbook — all 6 clearly shown ──
-       Row 1: hero(62%) + tall secondary(38%) — prominent pair
-       Row 2: four equal thumbnails in a strip
-    */
+    /* 6 — magazine: hero+1 big row, four-strip below. Total ≈ 370px */
     if (n >= 6) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-        {/* Row 1: two dominant images */}
-        <div style={{ display: "flex", gap: GAP, height: 210 }}>
-          <div style={{ flex: "0 0 62%", height: 210 }}>{CELL(photos[0], 0, 210)}</div>
-          <div style={{ flex: 1, height: 210 }}>{CELL(photos[1], 1, 210)}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
+        {/* Row 1: dominant pair */}
+        <div style={{ display: "flex", gap: GAP, height: 225 }}>
+          <div style={{ flex: "0 0 58%", height: 225, overflow: "hidden" }}>{CELL(photos[0], 0, 225)}</div>
+          <div style={{ flex: 1,          height: 225, overflow: "hidden" }}>{CELL(photos[1], 1, 225)}</div>
         </div>
         {/* Row 2: four equal supporting shots */}
-        <div style={{ display: "flex", gap: GAP, height: 145 }}>
-          {photos.slice(2, 6).map((ph, i) => (
-            <div key={i} style={{ flex: 1, height: 145 }}>{CELL(ph, i + 2, 145)}</div>
-          ))}
+        <div style={{ display: "flex", gap: GAP, height: 140 }}>
+          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[2], 2, 140)}</div>
+          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[3], 3, 140)}</div>
+          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[4], 4, 140)}</div>
+          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[5], 5, 140)}</div>
         </div>
       </div>
     );
@@ -2810,14 +2808,48 @@ function ProductDesignerModule() {
       const h2c = await loadHtml2Canvas();
       const cardEl = document.querySelector(`[data-card-id="${p.id}"]`);
       if (!cardEl) throw new Error("Card element not found");
-      const canvas = await h2c(cardEl, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+
+      // Clone into a fixed-width off-screen container so html2canvas
+      // always captures at exactly 900px wide — prevents any distortion.
+      const CAPTURE_W = 900;
+      const container = document.createElement("div");
+      container.style.cssText = [
+        `position:fixed`, `top:-9999px`, `left:-9999px`,
+        `width:${CAPTURE_W}px`, `background:#fff`,
+        `font-family:'Plus Jakarta Sans',sans-serif`,
+        `overflow:hidden`, `z-index:-1`
+      ].join(";");
+      const clone = cardEl.cloneNode(true);
+      clone.style.width = CAPTURE_W + "px";
+      clone.style.maxWidth = CAPTURE_W + "px";
+      container.appendChild(clone);
+      document.body.appendChild(container);
+
+      // Small delay so images inside clone can paint
+      await new Promise(r => setTimeout(r, 300));
+
+      const canvas = await h2c(clone, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        width: CAPTURE_W,
+        windowWidth: CAPTURE_W,
+      });
+
+      document.body.removeChild(container);
+
       const base64 = canvas.toDataURL("image/png").split(",")[1];
       const filename = `KHT-Brochure-${(p.fields.quality || "Product").replace(/\s+/g, "-")}-${Date.now()}.png`;
       const resp = await fetch(driveUrl, { method: "POST", body: JSON.stringify({ base64, mimeType: "image/png", filename, category: "Marketing Cards" }) });
       const data = await resp.json();
       if (data.ok) { setSaveStatus(s => ({ ...s, [p.id]: "saved" })); showToast(`✅ Saved to Drive → Marketing Cards!`); }
       else throw new Error("Drive upload failed");
-    } catch (e) { setSaveStatus(s => ({ ...s, [p.id]: null })); showToast(`❌ Save failed: ${e.message}`); }
+    } catch (e) {
+      setSaveStatus(s => ({ ...s, [p.id]: null }));
+      showToast(`❌ Save failed: ${e.message}`);
+    }
   };
 
   const printCatalogue = () => {
