@@ -2379,60 +2379,42 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
   const showPrice = !!p.fields.price;
 
   /*
-   * CELL — objectFit:cover fills every tile edge-to-edge with zero gaps.
-   * Fixed height passed explicitly — flex/grid wrappers must also set same height.
-   * position:absolute img pattern prevents any browser stretch.
+   * CELL — Uses CSS background-image + background-size:cover instead of <img> tag.
+   * REASON: html2canvas v1 silently ignores object-fit on <img> elements and
+   * stretches them to fill the container. background-size:cover is rendered correctly.
+   * This fixes both Drive PNG saves and screen display.
    */
   const CELL = (ph, i, h) => (
     <div key={i} style={{
-      position: "relative",
       width: "100%",
       height: h,
-      overflow: "hidden",
       flexShrink: 0,
-      background: "#111",
+      position: "relative",
+      backgroundImage: `url(${ph.preview})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center center",
+      backgroundRepeat: "no-repeat",
+      backgroundColor: "#1a1a1a",
     }}>
-      <img
-        src={ph.preview}
-        alt={`view ${i + 1}`}
-        crossOrigin="anonymous"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "center",
-          display: "block",
-        }}
-      />
-      {/* Subtle bottom gradient for depth */}
-      <div style={{
-        position: "absolute", inset: 0,
-        background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.22) 100%)",
-        pointerEvents: "none"
-      }} />
-      {/* Main badge on first photo */}
       {i === 0 && n > 1 && (
         <div style={{
           position: "absolute", top: 8, left: 8,
           background: "rgba(196,145,58,0.95)", color: "#0D1B2A",
           fontSize: 7, fontWeight: 900, padding: "2px 8px",
-          borderRadius: 3, letterSpacing: ".1em", textTransform: "uppercase"
+          borderRadius: 3, letterSpacing: ".1em", textTransform: "uppercase",
         }}>Main</div>
       )}
-      {/* Photo number dot */}
       <div style={{
-        position: "absolute", bottom: 6, right: 7,
-        background: "rgba(13,27,42,0.7)", color: "#C4913A",
+        position: "absolute", bottom: 5, right: 6,
+        background: "rgba(13,27,42,0.72)", color: "#C4913A",
         fontSize: 8, fontWeight: 800,
         width: 17, height: 17, borderRadius: "50%",
-        display: "flex", alignItems: "center", justifyContent: "center"
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>{i + 1}</div>
     </div>
   );
 
-  const GAP = 2; /* 2px = thin visible separator line, no breathing room */
+  const GAP = 2;
 
   /*
    * renderGallery — every wrapper div has explicit height = sum of its children.
@@ -2441,23 +2423,23 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
   const renderGallery = () => {
 
     /* 1 — cinematic hero */
-    if (n === 1) return <div style={{ lineHeight: 0 }}>{CELL(photos[0], 0, 340)}</div>;
+    if (n === 1) return <div style={{ lineHeight: 0 }}>{CELL(photos[0], 0, 300)}</div>;
 
     /* 2 — equal side-by-side, no gap between them */
     if (n === 2) return (
       <div style={{ display: "flex", gap: GAP, lineHeight: 0 }}>
-        <div style={{ flex: 1, height: 300, overflow: "hidden" }}>{CELL(photos[0], 0, 300)}</div>
-        <div style={{ flex: 1, height: 300, overflow: "hidden" }}>{CELL(photos[1], 1, 300)}</div>
+        <div style={{ flex: 1, height: 260, overflow: "hidden" }}>{CELL(photos[0], 0, 260)}</div>
+        <div style={{ flex: 1, height: 260, overflow: "hidden" }}>{CELL(photos[1], 1, 260)}</div>
       </div>
     );
 
     /* 3 — wide hero top (full width) + two equal below */
     if (n === 3) return (
       <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
-        <div style={{ height: 210, overflow: "hidden" }}>{CELL(photos[0], 0, 210)}</div>
-        <div style={{ display: "flex", gap: GAP, height: 175 }}>
-          <div style={{ flex: 1, height: 175, overflow: "hidden" }}>{CELL(photos[1], 1, 175)}</div>
-          <div style={{ flex: 1, height: 175, overflow: "hidden" }}>{CELL(photos[2], 2, 175)}</div>
+        <div style={{ height: 180, overflow: "hidden" }}>{CELL(photos[0], 0, 180)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 150 }}>
+          <div style={{ flex: 1, height: 150, overflow: "hidden" }}>{CELL(photos[1], 1, 150)}</div>
+          <div style={{ flex: 1, height: 150, overflow: "hidden" }}>{CELL(photos[2], 2, 150)}</div>
         </div>
       </div>
     );
@@ -2465,13 +2447,13 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
     /* 4 — 2×2 perfect grid */
     if (n === 4) return (
       <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
-        <div style={{ display: "flex", gap: GAP, height: 190 }}>
-          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[0], 0, 190)}</div>
-          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[1], 1, 190)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 165 }}>
+          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[0], 0, 165)}</div>
+          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[1], 1, 165)}</div>
         </div>
-        <div style={{ display: "flex", gap: GAP, height: 190 }}>
-          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[2], 2, 190)}</div>
-          <div style={{ flex: 1, height: 190, overflow: "hidden" }}>{CELL(photos[3], 3, 190)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 165 }}>
+          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[2], 2, 165)}</div>
+          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[3], 3, 165)}</div>
         </div>
       </div>
     );
@@ -2480,13 +2462,13 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
     if (n === 5) return (
       <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
         <div style={{ display: "flex", gap: GAP, height: 215 }}>
-          <div style={{ flex: "0 0 60%", height: 215, overflow: "hidden" }}>{CELL(photos[0], 0, 215)}</div>
-          <div style={{ flex: 1,          height: 215, overflow: "hidden" }}>{CELL(photos[1], 1, 215)}</div>
+          <div style={{ flex: "0 0 60%", height: 185, overflow: "hidden" }}>{CELL(photos[0], 0, 185)}</div>
+          <div style={{ flex: 1,          height: 185, overflow: "hidden" }}>{CELL(photos[1], 1, 185)}</div>
         </div>
-        <div style={{ display: "flex", gap: GAP, height: 155 }}>
-          <div style={{ flex: 1, height: 155, overflow: "hidden" }}>{CELL(photos[2], 2, 155)}</div>
-          <div style={{ flex: 1, height: 155, overflow: "hidden" }}>{CELL(photos[3], 3, 155)}</div>
-          <div style={{ flex: 1, height: 155, overflow: "hidden" }}>{CELL(photos[4], 4, 155)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 130 }}>
+          <div style={{ flex: 1, height: 130, overflow: "hidden" }}>{CELL(photos[2], 2, 130)}</div>
+          <div style={{ flex: 1, height: 130, overflow: "hidden" }}>{CELL(photos[3], 3, 130)}</div>
+          <div style={{ flex: 1, height: 130, overflow: "hidden" }}>{CELL(photos[4], 4, 130)}</div>
         </div>
       </div>
     );
@@ -2496,15 +2478,15 @@ function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
       <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
         {/* Row 1: dominant pair */}
         <div style={{ display: "flex", gap: GAP, height: 225 }}>
-          <div style={{ flex: "0 0 58%", height: 225, overflow: "hidden" }}>{CELL(photos[0], 0, 225)}</div>
-          <div style={{ flex: 1,          height: 225, overflow: "hidden" }}>{CELL(photos[1], 1, 225)}</div>
+          <div style={{ flex: "0 0 58%", height: 185, overflow: "hidden" }}>{CELL(photos[0], 0, 185)}</div>
+          <div style={{ flex: 1,          height: 185, overflow: "hidden" }}>{CELL(photos[1], 1, 185)}</div>
         </div>
         {/* Row 2: four equal supporting shots */}
-        <div style={{ display: "flex", gap: GAP, height: 140 }}>
-          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[2], 2, 140)}</div>
-          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[3], 3, 140)}</div>
-          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[4], 4, 140)}</div>
-          <div style={{ flex: 1, height: 140, overflow: "hidden" }}>{CELL(photos[5], 5, 140)}</div>
+        <div style={{ display: "flex", gap: GAP, height: 115 }}>
+          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[2], 2, 115)}</div>
+          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[3], 3, 115)}</div>
+          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[4], 4, 115)}</div>
+          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[5], 5, 115)}</div>
         </div>
       </div>
     );
@@ -2859,71 +2841,59 @@ function ProductDesignerModule() {
     }
   };
 
-  const printCatalogue = () => {
+  const printCatalogue = async () => {
     const cards = document.querySelectorAll("[data-product-card='true']");
     if (!cards.length) { showToast("Generate at least one card first."); return; }
-    const win = window.open("", "_blank");
-    const cardHTMLs = Array.from(cards).map((c, idx) =>
-      `<div class="brochure-page" ${idx > 0 ? 'style="page-break-before:always;"' : ''}>${c.outerHTML}</div>`
-    ).join("");
-    win.document.write(`<!DOCTYPE html><html><head>
-      <meta charset="utf-8">
-      <title>KHT${clientName ? ` · ${clientName}` : ""} · terrytowel.in</title>
-      <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-      <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    showToast("⏳ Preparing PDF — please wait…");
+    try {
+      const h2c = await loadHtml2Canvas();
+      const CAPTURE_W = 900;
 
-        /* A4 = 210 × 297 mm. We render the card at 794px wide then scale to fit.
-           794px ≈ 210mm @ 96dpi. scale(0.97) gives ~8px breathing room each side. */
-        @page { size: A4 portrait; margin: 0; }
+      // ── Capture every card as a hi-res PNG via html2canvas ──
+      // This bakes background-images, gradients and all CSS into pixels,
+      // so the print engine receives plain <img> tags — zero overflow possible.
+      const dataUrls = await Promise.all(Array.from(cards).map(async (cardEl) => {
+        const wrap = document.createElement("div");
+        wrap.style.cssText = `position:fixed;top:-9999px;left:0;width:${CAPTURE_W}px;background:#fff;z-index:-999;`;
+        const clone = cardEl.cloneNode(true);
+        clone.style.cssText += `width:${CAPTURE_W}px;max-width:${CAPTURE_W}px;`;
+        wrap.appendChild(clone);
+        document.body.appendChild(wrap);
+        await new Promise(r => setTimeout(r, 350)); // let backgrounds paint
+        const canvas = await h2c(clone, {
+          scale: 2, useCORS: true, allowTaint: true,
+          backgroundColor: "#ffffff", logging: false,
+          width: CAPTURE_W, windowWidth: CAPTURE_W,
+        });
+        document.body.removeChild(wrap);
+        return canvas.toDataURL("image/jpeg", 0.93); // jpeg smaller than png, still crisp
+      }));
 
-        html, body {
-          margin: 0; padding: 0;
-          background: #fff;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-          color-adjust: exact;
-        }
-
-        /* Each product = one self-contained scaled page */
-        .brochure-page {
-          width: 794px;
-          background: #fff;
-          /* Scale to fit A4 width with small margin */
-          transform: scale(0.97);
-          transform-origin: top left;
-          /* After scale the element still occupies 794px in flow, so
-             add negative margin to collapse the gap: 794 * (1-0.97) = ~24px */
-          margin-bottom: -24px;
-          page-break-after: always;
-          break-after: page;
-        }
-        .brochure-page:last-child {
-          page-break-after: auto;
-          break-after: auto;
-        }
-
-        [data-product-card] { width: 100%; }
-
-        /* Never orphan the footer onto its own page */
-        [data-product-card] > div:last-child {
-          break-before: avoid;
-          page-break-before: avoid;
-        }
-
-        /* Screen preview */
-        @media screen {
-          body { background: #888; padding: 20px 0; }
-          .brochure-page {
-            margin: 0 auto 24px;
-            box-shadow: 0 8px 40px rgba(0,0,0,.3);
-            transform: none;  /* no scale on screen — show actual size */
-          }
-        }
-      </style>
-    </head><body>${cardHTMLs}</body></html>`);
-    win.document.close();
-    setTimeout(() => { win.focus(); win.print(); }, 1200);
+      // ── Open print window with canvas images sized to A4 ──
+      // Each page = one <img width:210mm> — can NEVER overflow or get cut.
+      const win = window.open("", "_blank");
+      const pages = dataUrls.map((url, idx) => `
+        <div class="page"${idx > 0 ? ' style="page-break-before:always"' : ''}>
+          <img src="${url}" style="width:210mm;height:auto;display:block;max-height:297mm;">
+        </div>`).join("");
+      win.document.write(`<!DOCTYPE html><html><head>
+        <meta charset="utf-8">
+        <title>KHT${clientName ? ` · ${clientName}` : ""} · terrytowel.in</title>
+        <style>
+          *{margin:0;padding:0;box-sizing:border-box}
+          @page{size:A4 portrait;margin:0}
+          html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+          .page{width:210mm;overflow:hidden;background:#fff}
+          @media screen{body{background:#888;padding:20px 0}.page{margin:0 auto 20px;box-shadow:0 4px 24px rgba(0,0,0,.3)}}
+        </style>
+      </head><body>${pages}</body></html>`);
+      win.document.close();
+      // Wait for images to load in the new window before printing
+      win.onload = () => setTimeout(() => { win.focus(); win.print(); }, 400);
+      setTimeout(() => { try { win.focus(); win.print(); } catch(e){} }, 2000);
+    } catch(e) {
+      showToast(`❌ Print failed: ${e.message}`);
+    }
   };
 
   const saveAllToDrive = async () => {
