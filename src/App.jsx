@@ -2115,901 +2115,682 @@ function LoginScreen({ onLogin }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PRODUCT DESIGNER MODULE  (Claude Vision → Brochure / Quotation)
+   PICTURE QUOTATION MODULE
+   Select images → build itemised quotation with product photos
 ═══════════════════════════════════════════════════════════════ */
-const EMPTY_PRODUCT = () => ({
-  id: Date.now() + Math.random(),
-  photos: [],        // [{base64, mimeType, preview, fromDrive?}]
-  result: null,
-  loading: false,
-  fields: { quality: "", style: "Jacquard Border", design: "Classic Dobby", size: "14 x 21 inches", weight: "80", price: "" },
-  description: ""
+
+/* ═══════════════════════════════════════════════════════════════
+   PICTURE QUOTATION MODULE
+   - Each product = one row: image (left) + name/size/weight/price (right)
+   - Client: type freely OR pick from dispatch contacts
+   - Print: pure static HTML table with embedded base64 images
+             Tables + @page margins = 100% reliable A4, never cuts
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Data shape for one product row ── */
+const EMPTY_ROW = () => ({
+  id: Math.random().toString(36).slice(2, 9),
+  dataUrl: null,      // base64 image — always dataUrl so print never needs fetch
+  imgName: "",
+  name:    "",        // product name / quality
+  size:    "",        // e.g. 60×90 inch
+  weight:  "",        // e.g. 600 GSM / 1200 gms
+  price:   "",        // unit price per piece
 });
 
-const calcGsmUtil = (size, weight) => {
-  const dims = size.match(/(\d+(\.\d+)?)\s*[xX*]\s*(\d+(\.\d+)?)/);
-  const w = parseFloat(weight);
-  if (!dims || !w) return null;
-  return Math.ceil((w / ((parseFloat(dims[1]) * 0.0254) * (parseFloat(dims[3]) * 0.0254))) / 5) * 5;
-};
+/* ── Drive Picker — single select, fetches base64 at confirm time ── */
+function QuoteDrivePickerModal({ driveUrl, onPick, onClose }) {
+  const [imgs, setImgs]     = React.useState([]);
+  const [cats, setCats]     = React.useState([]);
+  const [selCat, setSelCat] = React.useState("ALL");
+  const [loading, setLoading] = React.useState(true);
+  const [fetching, setFetching] = React.useState(false);
+  const [sel, setSel]       = React.useState(null);
+  const [err, setErr]       = React.useState(null);
 
-/* ── Drive Image Picker Modal ── */
-function DrivePickerModal({ driveUrl, existingPhotos, onAdd, onClose }) {
-  const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selected, setSelected] = useState(new Set());
-  const [filter, setFilter] = useState("All");
-  const [cats, setCats] = useState([]);
-
-  useEffect(() => {
-    if (!driveUrl) {
-      setError("Products Drive URL not set. Go to Products module → ⚙️ Settings and configure the Drive URL first.");
-      setLoading(false);
-      return;
-    }
-    const url = `${driveUrl}?action=list&t=${Date.now()}`;
-    fetch(url)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
-        return r.json();
+  React.useEffect(() => {
+    fetch(`${driveUrl}?action=list&t=${Date.now()}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && d.images) {
+          setImgs(d.images);
+          const c = ["ALL", ...new Set(d.images.map(x => x.cat).filter(Boolean))];
+          setCats(c);
+        } else { setErr("Could not load Drive images."); }
       })
-      .then(data => {
-        // Apps Script returns: { ok: true, images: [{id, name, cat, thumb, url, shareUrl}] }
-        if (data.ok === false) throw new Error(data.error || "Script returned ok:false");
-        const imgs = data.images || data.files || (Array.isArray(data) ? data : []);
-        setImages(imgs);
-        const uniqueCats = [...new Set(imgs.map(i => i.cat || i.category || "").filter(Boolean))].sort();
-        setCats(uniqueCats);
-        setLoading(false);
-      })
-      .catch(e => {
-        setError(`Failed to load: ${e.message}`);
-        setLoading(false);
-      });
+      .catch(() => setErr("Network error loading Drive images."))
+      .finally(() => setLoading(false));
   }, []);
 
-  const existingPreviews = new Set(existingPhotos.map(p => p.driveId).filter(Boolean));
-  const filtered = filter === "All" ? images : images.filter(i => (i.cat || i.category || "Uncategorised") === filter);
+  const visible = selCat === "ALL" ? imgs : imgs.filter(x => x.cat === selCat);
 
-  const toggle = (img) => {
-    const id = img.id;
-    if (existingPreviews.has(id)) return;
-    setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  /* On confirm: fetch base64 via Apps Script proxy so the dataUrl is self-contained */
+  const confirm = async () => {
+    if (!sel) return;
+    setFetching(true);
+    try {
+      const r = await fetch(`${driveUrl}?action=getBase64&id=${sel.id}&t=${Date.now()}`);
+      const d = await r.json();
+      if (d.ok && d.base64) {
+        const dataUrl = `data:${d.mimeType || "image/jpeg"};base64,${d.base64}`;
+        onPick({ dataUrl, imgName: sel.name });
+      } else {
+        /* Fallback: use Google thumbnail URL as preview (may not print) */
+        onPick({ dataUrl: sel.thumb || sel.url, imgName: sel.name });
+      }
+    } catch {
+      onPick({ dataUrl: sel.thumb || sel.url, imgName: sel.name });
+    } finally { setFetching(false); }
   };
 
-  const confirm = async () => {
-    // Use Drive URLs directly as preview — no CORS fetch needed for display.
-    // base64 is fetched lazily in generateOne only for images that have a fetchable URL.
-    const toAdd = images.filter(i => selected.has(i.id));
-    const newPhotos = toAdd.map(img => {
-      const preview = img.thumb || img.url || img.shareUrl || `https://lh3.googleusercontent.com/d/${img.id}`;
-      return { base64: null, mimeType: "image/jpeg", preview, fromDrive: true, driveId: img.id, driveName: img.name, driveFileId: img.id };
-    });
-    onAdd(newPhotos);
-    onClose();
+  const ov = {
+    position:"fixed", inset:0, background:"rgba(13,27,42,.72)",
+    zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center"
+  };
+  const box = {
+    background:"#fff", borderRadius:16, width:660, maxWidth:"95vw",
+    maxHeight:"82vh", display:"flex", flexDirection:"column",
+    boxShadow:"0 24px 80px rgba(0,0,0,.4)"
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ background: "var(--white)", borderRadius: 20, width: "100%", maxWidth: 720, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,.35)" }}>
-        {/* MODAL HEADER */}
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={ov} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={box}>
+        {/* Header */}
+        <div style={{ padding:"16px 20px", borderBottom:"1px solid #E3DDD4", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 700 }}>📁 Select from Products Database</div>
-            <div style={{ fontSize: 11, color: "var(--text-light)", marginTop: 2 }}>{selected.size} selected · click to toggle</div>
+            <div style={{ fontWeight:800, fontSize:15, color:"#0D1B2A" }}>📁 Pick from Drive</div>
+            <div style={{ fontSize:11, color:"#999", marginTop:2 }}>Select one image for this product row</div>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            {selected.size > 0 && <button className="btn btn-gold btn-sm" onClick={confirm}>Add {selected.size} Photo{selected.size > 1 ? "s" : ""} →</button>}
-            <button className="btn btn-out btn-sm" onClick={onClose}><X size={14} /></button>
-          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"#999" }}>✕</button>
         </div>
 
-        {/* CATEGORY FILTER */}
-        {cats.length > 0 && (
-          <div style={{ padding: "10px 24px", borderBottom: "1px solid var(--border)", display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {["All", ...cats].map(c => (
-              <button key={c} onClick={() => setFilter(c)} style={{ padding: "4px 12px", borderRadius: 20, border: "1.5px solid", fontSize: 11, fontWeight: 600, cursor: "pointer", borderColor: filter === c ? "var(--gold)" : "var(--border)", background: filter === c ? "var(--gold-pp)" : "transparent", color: filter === c ? "var(--gold)" : "var(--text-mid)" }}>{c}</button>
+        {/* Category pills */}
+        {cats.length > 1 && (
+          <div style={{ padding:"10px 20px", display:"flex", gap:6, flexWrap:"wrap", borderBottom:"1px solid #f0ece6" }}>
+            {cats.map(c => (
+              <button key={c} onClick={() => setSelCat(c)}
+                style={{ padding:"4px 12px", borderRadius:20, border:"1.5px solid", fontSize:11, fontWeight:600, cursor:"pointer",
+                  borderColor: selCat===c ? "#C4913A" : "#ddd",
+                  background:  selCat===c ? "#C4913A" : "#fff",
+                  color:       selCat===c ? "#fff"    : "#666" }}>
+                {c}
+              </button>
             ))}
           </div>
         )}
 
-        {/* IMAGE GRID */}
-        <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
-          {loading && <div style={{ textAlign: "center", padding: 60, color: "var(--text-light)" }}><div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>Loading from Drive…</div>}
-          {error && <div style={{ textAlign: "center", padding: 40, color: "#DC2626", fontSize: 13 }}>{error}</div>}
-          {!loading && !error && filtered.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "var(--text-light)" }}>No images found in this category.</div>}
-          {!loading && !error && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
-              {filtered.map(img => {
-                const id = img.id;
-                const url = img.url || img.thumb || `https://lh3.googleusercontent.com/d/${id}`;
-                const isSel = selected.has(id);
-                const isExisting = existingPreviews.has(id);
-                return (
-                  <div key={id} onClick={() => toggle(img)} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1", cursor: isExisting ? "default" : "pointer", border: isSel ? "3px solid var(--gold)" : isExisting ? "2px solid #22c55e" : "2px solid transparent", boxShadow: isSel ? "0 0 0 2px rgba(196,145,58,.3)" : "var(--shadow-sm)", transition: "all .15s", opacity: isExisting ? .6 : 1 }}>
-                    <img src={url} alt={img.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { e.target.style.background="#eee"; e.target.style.display="none"; }} />
-                    {isSel && <div style={{ position: "absolute", inset: 0, background: "rgba(196,145,58,.25)", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ background: "var(--gold)", color: "var(--navy)", width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800 }}>✓</div></div>}
-                    {isExisting && <div style={{ position: "absolute", bottom: 4, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "#22c55e", fontWeight: 700, background: "rgba(255,255,255,.85)" }}>Already added</div>}
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,.7))", padding: "16px 6px 5px", fontSize: 9, color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{img.name}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {selected.size > 0 && (
-          <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button className="btn btn-out btn-sm" onClick={() => setSelected(new Set())}>Clear Selection</button>
-            <button className="btn btn-gold" onClick={confirm}>Add {selected.size} Photo{selected.size > 1 ? "s" : ""} to Product →</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ── Single product input slot ── */
-function SingleProductSlot({ p, idx, onChange, onRemove, onGenerate, driveUrl }) {
-  const multiRef = useRef();
-  const [showDrivePicker, setShowDrivePicker] = useState(false);
-  const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
-
-  const handleFiles = (files) => {
-    const slots = 6 - p.photos.length;
-    if (slots <= 0) return;
-    const arr = Array.from(files).filter(f => f.type.startsWith("image/")).slice(0, slots);
-    // Read ALL files via Promise.all so we get one atomic onChange with all photos
-    Promise.all(arr.map(file => new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve({
-        base64: e.target.result.split(",")[1],
-        mimeType: file.type,
-        preview: e.target.result
-      });
-      reader.readAsDataURL(file);
-    }))).then(newPhotos => {
-      onChange(idx, { photos: [...p.photos, ...newPhotos] });
-    });
-  };
-
-  const removePhoto = (pi) => onChange(idx, { photos: p.photos.filter((_, i) => i !== pi) });
-  const setField = (k, v) => onChange(idx, { fields: { ...p.fields, [k]: v } });
-  const hasPhotos = p.photos.length > 0;
-
-  return (
-    <div style={{ background: "var(--white)", border: p.result ? "2px solid var(--gold)" : "1.5px solid var(--border)", borderRadius: 16, overflow: "hidden", boxShadow: p.result ? "0 4px 20px rgba(196,145,58,.15)" : "var(--shadow-sm)", transition: "all .2s" }}>
-
-      {showDrivePicker && <DrivePickerModal driveUrl={driveUrl} existingPhotos={p.photos} onAdd={newPhotos => onChange(idx, { photos: [...p.photos, ...newPhotos].slice(0, 6) })} onClose={() => setShowDrivePicker(false)} />}
-
-      {/* SLOT HEADER */}
-      <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-mid)" }}>{p.result ? "✅ " : ""}Product {idx + 1}{p.fields.quality ? ` · ${p.fields.quality}` : ""}</div>
-        <button onClick={() => onRemove(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", fontSize: 16, lineHeight: 1, padding: "2px 6px", borderRadius: 4 }}>✕</button>
-      </div>
-
-      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-
-        {/* MULTI-PHOTO UPLOAD */}
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <label className="lbl" style={{ fontSize: 10, margin: 0 }}>Photos <span style={{ color: "var(--text-light)", fontWeight: 400 }}>(up to 6 · first = main)</span></label>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setShowDrivePicker(true)} className="btn btn-gold btn-sm" style={{ fontSize: 10, padding: "4px 10px" }} disabled={p.photos.length >= 6}>📁 From Drive</button>
-              <button onClick={() => multiRef.current?.click()} className="btn btn-out btn-sm" style={{ fontSize: 10, padding: "4px 10px" }} disabled={p.photos.length >= 6}>📸 Upload</button>
-            </div>
-          </div>
-          <input ref={multiRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
-
-          {!hasPhotos ? (
-            <div style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: "20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div onClick={() => setShowDrivePicker(true)} style={{ background: "var(--gold-pp)", border: "1.5px solid var(--gold)", borderRadius: 10, padding: "16px 10px", textAlign: "center", cursor: "pointer" }}>
-                <div style={{ fontSize: 22, marginBottom: 4 }}>📁</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--gold)" }}>From Products<br />Database</div>
-              </div>
-              <div onClick={() => multiRef.current?.click()} style={{ background: "var(--bg)", border: "1.5px dashed var(--border)", borderRadius: 10, padding: "16px 10px", textAlign: "center", cursor: "pointer" }}>
-                <div style={{ fontSize: 22, marginBottom: 4 }}>📸</div>
-                <div style={{ fontSize: 10, color: "var(--text-light)" }}>Upload from<br />your device</div>
-              </div>
-            </div>
+        {/* Image grid */}
+        <div style={{ flex:1, overflowY:"auto", padding:16 }}>
+          {loading ? (
+            <div style={{ textAlign:"center", padding:40, color:"#999" }}>Loading images…</div>
+          ) : err ? (
+            <div style={{ textAlign:"center", padding:40, color:"#e55" }}>{err}</div>
+          ) : visible.length === 0 ? (
+            <div style={{ textAlign:"center", padding:40, color:"#bbb" }}>No images in this category.</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {p.photos.map((ph, pi) => (
-                <div key={pi} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: pi === 0 ? "2px solid var(--gold)" : "1px solid var(--border)", aspectRatio: "1" }}>
-                  <img src={ph.preview} alt={`photo ${pi+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
-                  {pi === 0 && <div style={{ position: "absolute", top: 4, left: 4, background: "var(--gold)", color: "var(--navy)", fontSize: 8, fontWeight: 800, padding: "2px 5px", borderRadius: 4 }}>Main</div>}
-                  {ph.fromDrive && <div style={{ position: "absolute", bottom: 4, left: 4, background: "rgba(13,27,42,.7)", color: "#C4913A", fontSize: 7, fontWeight: 700, padding: "2px 5px", borderRadius: 3 }}>Drive</div>}
-                  <button onClick={() => removePhoto(pi)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,.6)", border: "none", color: "#fff", fontSize: 12, width: 20, height: 20, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))", gap:8 }}>
+              {visible.map(img => (
+                <div key={img.id} onClick={() => setSel(img)}
+                  style={{ cursor:"pointer", borderRadius:8, overflow:"hidden", border:"3px solid",
+                    borderColor: sel?.id === img.id ? "#C4913A" : "transparent",
+                    boxShadow: sel?.id === img.id ? "0 0 0 2px rgba(196,145,58,.4)" : "0 1px 4px rgba(0,0,0,.1)" }}>
+                  <img src={img.thumb || img.url} alt={img.name}
+                    style={{ width:"100%", aspectRatio:"1", objectFit:"cover", display:"block" }} />
+                  <div style={{ padding:"4px 6px", fontSize:9, color:"#666", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                    {img.name}
+                  </div>
                 </div>
               ))}
-              {p.photos.length < 6 && (
-                <div style={{ border: "1.5px dashed var(--border)", borderRadius: 10, display: "flex", flexDirection: "column", gap: 4, alignItems: "center", justifyContent: "center", cursor: "pointer", aspectRatio: "1", background: "var(--bg)" }}>
-                  <div onClick={() => setShowDrivePicker(true)} style={{ fontSize: 9, color: "var(--gold)", fontWeight: 700, textAlign: "center", padding: "6px 4px", width: "100%", borderBottom: "1px solid var(--border)" }}>📁 Drive</div>
-                  <div onClick={() => multiRef.current?.click()} style={{ fontSize: 9, color: "var(--text-light)", textAlign: "center", padding: "6px 4px", width: "100%" }}>📸 Upload</div>
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        {/* SPEC FIELDS */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {[["Quality Name","quality","text"],["Border Style","style","text"],["Design","design","text"],["Size (inches)","size","text"],["Weight (g/pc)","weight","number"]].map(([label,key,type]) => (
-            <div key={key}>
-              <label className="lbl" style={{ fontSize: 10 }}>{label}</label>
-              <input className="inp" style={{ padding: "7px 10px", fontSize: 12 }} type={type} value={p.fields[key]} onChange={e => setField(key, e.target.value)} placeholder={label} />
-            </div>
-          ))}
-          <div>
-            <label className="lbl" style={{ fontSize: 10 }}>Calculated GSM</label>
-            <div style={{ background: "var(--gold-pp)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", fontWeight: 800, fontSize: 13, color: gsm ? "var(--gold)" : "var(--text-light)", fontFamily: "Times New Roman, serif" }}>{gsm ? `${gsm} GSM` : "—"}</div>
-          </div>
+        {/* Footer */}
+        <div style={{ padding:"12px 20px", borderTop:"1px solid #E3DDD4", display:"flex", justifyContent:"flex-end", gap:10 }}>
+          <button onClick={onClose}
+            style={{ padding:"8px 20px", borderRadius:8, border:"1.5px solid #ddd", background:"#fff", cursor:"pointer", fontWeight:600, fontSize:13 }}>
+            Cancel
+          </button>
+          <button onClick={confirm} disabled={!sel || fetching}
+            style={{ padding:"8px 24px", borderRadius:8, border:"none", background: sel ? "#C4913A" : "#ddd",
+              color: sel ? "#fff" : "#999", cursor: sel ? "pointer" : "default", fontWeight:700, fontSize:13 }}>
+            {fetching ? "Loading…" : sel ? `Use: ${sel.name.slice(0,22)}` : "Select an image"}
+          </button>
         </div>
-
-        {/* PRICE */}
-        <div>
-          <label className="lbl" style={{ fontSize: 10 }}>Price <span style={{ color: "var(--text-light)", fontWeight: 400 }}>(optional · shown on brochure if filled)</span></label>
-          <input className="inp" style={{ padding: "7px 10px", fontSize: 12 }} type="text" value={p.fields.price} onChange={e => setField("price", e.target.value)} placeholder="e.g. ₹85/pc · USD 1.20/pc · ₹420/dozen" />
-        </div>
-
-        {/* DESCRIPTION */}
-        <div>
-          <label className="lbl" style={{ fontSize: 10 }}>Product Details <span style={{ color: "var(--text-light)", fontWeight: 400 }}>(helps AI write better copy)</span></label>
-          <textarea className="inp" rows={3} style={{ resize: "vertical", fontSize: 12, lineHeight: 1.6, fontFamily: "inherit" }} value={p.description} onChange={e => onChange(idx, { description: e.target.value })} placeholder="Thread count, colour options, MOQ, certifications, special finishing, export markets, hotels already supplied, unique weave, packaging details…" />
-        </div>
-
-        {/* GENERATE BTN */}
-        <button onClick={() => onGenerate(idx)} disabled={p.loading || !hasPhotos} style={{ width: "100%", padding: "10px", borderRadius: 10, border: p.result ? "1.5px solid var(--gold)" : "none", cursor: (p.loading || !hasPhotos) ? "not-allowed" : "pointer", background: p.result ? "var(--gold-pp)" : p.loading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)", color: p.result ? "var(--gold)" : "var(--navy)", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          {p.loading ? (<><span style={{ width: 14, height: 14, border: "2px solid rgba(0,0,0,.2)", borderTop: "2px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Analysing…</>) : p.result ? "✅ Ready · Re-generate" : !hasPhotos ? "📸 Add photos first" : "✨ Generate Brochure Card"}
-        </button>
       </div>
     </div>
   );
 }
 
-/* ── Brochure Card — A4 Design Brochure Layout ── */
-function BrochureCard({ p, clientName, clientCompany, quoteRef, quoteDate }) {
-  const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
-  const r = p.result;
-  if (!r) return null;
-  const photos = p.photos;
-  const n = photos.length;
-  const showClient = !!(clientName || clientCompany);
-  const showPrice = !!p.fields.price;
+/* ── One product row in the editor ── */
+function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, driveUrl }) {
+  const fileRef = React.useRef();
+  const [showDrive, setShowDrive] = React.useState(false);
 
-  /*
-   * CELL — Uses CSS background-image + background-size:cover instead of <img> tag.
-   * REASON: html2canvas v1 silently ignores object-fit on <img> elements and
-   * stretches them to fill the container. background-size:cover is rendered correctly.
-   * This fixes both Drive PNG saves and screen display.
-   */
-  const CELL = (ph, i, h) => (
-    <div key={i} style={{
-      width: "100%",
-      height: h,
-      flexShrink: 0,
-      position: "relative",
-      backgroundImage: `url(${ph.preview})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center center",
-      backgroundRepeat: "no-repeat",
-      backgroundColor: "#1a1a1a",
-    }}>
-      {i === 0 && n > 1 && (
-        <div style={{
-          position: "absolute", top: 8, left: 8,
-          background: "rgba(196,145,58,0.95)", color: "#0D1B2A",
-          fontSize: 7, fontWeight: 900, padding: "2px 8px",
-          borderRadius: 3, letterSpacing: ".1em", textTransform: "uppercase",
-        }}>Main</div>
-      )}
-      <div style={{
-        position: "absolute", bottom: 5, right: 6,
-        background: "rgba(13,27,42,0.72)", color: "#C4913A",
-        fontSize: 8, fontWeight: 800,
-        width: 17, height: 17, borderRadius: "50%",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>{i + 1}</div>
+  const loadFile = file => {
+    const reader = new FileReader();
+    reader.onload = e => onChange({ dataUrl: e.target.result, imgName: file.name });
+    reader.readAsDataURL(file);
+  };
+
+  const field = (key, placeholder, hint) => (
+    <div style={{ marginBottom:6 }}>
+      {hint && <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:".08em", marginBottom:2 }}>{hint}</div>}
+      <input value={row[key]} onChange={e => onChange({ [key]: e.target.value })} placeholder={placeholder}
+        style={{ width:"100%", border:"none", borderBottom:"1px solid #E8E4DF", padding:"4px 2px", fontSize:13,
+          outline:"none", background:"transparent", fontFamily:"inherit",
+          fontWeight: key==="name" ? 700 : 400, color: key==="name" ? "#0D1B2A" : "#555" }} />
     </div>
   );
 
-  const GAP = 2;
-
-  /*
-   * renderGallery — every wrapper div has explicit height = sum of its children.
-   * CELL always receives explicit px height. No flex auto-sizing can stretch anything.
-   */
-  const renderGallery = () => {
-
-    /* 1 — cinematic hero */
-    if (n === 1) return <div style={{ lineHeight: 0 }}>{CELL(photos[0], 0, 300)}</div>;
-
-    /* 2 — equal side-by-side, no gap between them */
-    if (n === 2) return (
-      <div style={{ display: "flex", gap: GAP, lineHeight: 0 }}>
-        <div style={{ flex: 1, height: 260, overflow: "hidden" }}>{CELL(photos[0], 0, 260)}</div>
-        <div style={{ flex: 1, height: 260, overflow: "hidden" }}>{CELL(photos[1], 1, 260)}</div>
-      </div>
-    );
-
-    /* 3 — wide hero top (full width) + two equal below */
-    if (n === 3) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
-        <div style={{ height: 180, overflow: "hidden" }}>{CELL(photos[0], 0, 180)}</div>
-        <div style={{ display: "flex", gap: GAP, height: 150 }}>
-          <div style={{ flex: 1, height: 150, overflow: "hidden" }}>{CELL(photos[1], 1, 150)}</div>
-          <div style={{ flex: 1, height: 150, overflow: "hidden" }}>{CELL(photos[2], 2, 150)}</div>
-        </div>
-      </div>
-    );
-
-    /* 4 — 2×2 perfect grid */
-    if (n === 4) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
-        <div style={{ display: "flex", gap: GAP, height: 165 }}>
-          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[0], 0, 165)}</div>
-          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[1], 1, 165)}</div>
-        </div>
-        <div style={{ display: "flex", gap: GAP, height: 165 }}>
-          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[2], 2, 165)}</div>
-          <div style={{ flex: 1, height: 165, overflow: "hidden" }}>{CELL(photos[3], 3, 165)}</div>
-        </div>
-      </div>
-    );
-
-    /* 5 — hero+1 top, three strip bottom */
-    if (n === 5) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
-        <div style={{ display: "flex", gap: GAP, height: 215 }}>
-          <div style={{ flex: "0 0 60%", height: 185, overflow: "hidden" }}>{CELL(photos[0], 0, 185)}</div>
-          <div style={{ flex: 1,          height: 185, overflow: "hidden" }}>{CELL(photos[1], 1, 185)}</div>
-        </div>
-        <div style={{ display: "flex", gap: GAP, height: 130 }}>
-          <div style={{ flex: 1, height: 130, overflow: "hidden" }}>{CELL(photos[2], 2, 130)}</div>
-          <div style={{ flex: 1, height: 130, overflow: "hidden" }}>{CELL(photos[3], 3, 130)}</div>
-          <div style={{ flex: 1, height: 130, overflow: "hidden" }}>{CELL(photos[4], 4, 130)}</div>
-        </div>
-      </div>
-    );
-
-    /* 6 — magazine: hero+1 big row, four-strip below. Total ≈ 370px */
-    if (n >= 6) return (
-      <div style={{ display: "flex", flexDirection: "column", gap: GAP, lineHeight: 0 }}>
-        {/* Row 1: dominant pair */}
-        <div style={{ display: "flex", gap: GAP, height: 225 }}>
-          <div style={{ flex: "0 0 58%", height: 185, overflow: "hidden" }}>{CELL(photos[0], 0, 185)}</div>
-          <div style={{ flex: 1,          height: 185, overflow: "hidden" }}>{CELL(photos[1], 1, 185)}</div>
-        </div>
-        {/* Row 2: four equal supporting shots */}
-        <div style={{ display: "flex", gap: GAP, height: 115 }}>
-          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[2], 2, 115)}</div>
-          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[3], 3, 115)}</div>
-          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[4], 4, 115)}</div>
-          <div style={{ flex: 1, height: 115, overflow: "hidden" }}>{CELL(photos[5], 5, 115)}</div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div data-product-card="true" style={{
-      background: "#fff",
-      fontFamily: "'Plus Jakarta Sans', sans-serif",
-      width: "100%"
-    }}>
+    <div style={{ display:"flex", gap:0, borderBottom:"1.5px solid #EDE8E2",
+      background: idx%2===0 ? "#fff" : "#FDFCFA", position:"relative" }}>
 
-      {/* ══ TOP STRIP: Company + Client ══ */}
-      <div style={{
-        background: "#0D1B2A",
-        padding: "12px 28px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between"
-      }}>
-        <div>
-          <div style={{ fontSize: 7.5, letterSpacing: ".22em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase" }}>
-            Kshirsagar Hometextiles · Est. 1947 · Solapur, India
-          </div>
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,.4)", marginTop: 2 }}>
-            terrytowel.in · +91 98225 49824 · info@kshirsagar.com
-          </div>
-        </div>
-        {showClient ? (
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Prepared For</div>
-            {clientName && <div style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{clientName}</div>}
-            {clientCompany && <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)", fontWeight: 500 }}>{clientCompany}</div>}
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", marginTop: 3 }}>
-              {quoteRef ? `Ref: ${quoteRef} · ` : ""}
-              {quoteDate ? new Date(quoteDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+      {/* Row number */}
+      <div style={{ width:32, display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize:11, fontWeight:800, color:"#C4913A", borderRight:"1px solid #EDE8E2", flexShrink:0 }}>
+        {idx+1}
+      </div>
+
+      {/* Image slot — 120×120 */}
+      <div style={{ width:140, flexShrink:0, padding:12, display:"flex", flexDirection:"column",
+        alignItems:"center", gap:6, borderRight:"1px solid #EDE8E2" }}>
+        {row.dataUrl ? (
+          <div style={{ width:110, height:110, borderRadius:8, overflow:"hidden",
+            border:"2px solid #E3DDD4", position:"relative", cursor:"pointer" }}
+            onClick={() => fileRef.current?.click()}>
+            <img src={row.dataUrl} alt=""
+              style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+            <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.45)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              opacity:0, transition:".15s" }}
+              onMouseEnter={e => e.currentTarget.style.opacity = 1}
+              onMouseLeave={e => e.currentTarget.style.opacity = 0}>
+              <span style={{ color:"#fff", fontSize:11, fontWeight:700 }}>Change</span>
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", fontStyle: "italic" }}>
-            Arch of Europe Gold Star Award · Since 1947
+          <div style={{ width:110, height:110, borderRadius:8, border:"2px dashed #C4913A",
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            cursor:"pointer", gap:4, background:"#FFFBF5" }}
+            onClick={() => fileRef.current?.click()}>
+            <span style={{ fontSize:26 }}>📷</span>
+            <span style={{ fontSize:9.5, color:"#C4913A", fontWeight:700 }}>Upload photo</span>
           </div>
+        )}
+        <button onClick={() => setShowDrive(true)}
+          style={{ fontSize:10, padding:"3px 10px", border:"1.5px solid #C4913A", borderRadius:6,
+            background:"#fff", color:"#C4913A", cursor:"pointer", fontWeight:700, width:"100%" }}>
+          📁 Drive
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }}
+          onChange={e => e.target.files[0] && loadFile(e.target.files[0])} />
+        {showDrive && (
+          <QuoteDrivePickerModal driveUrl={driveUrl}
+            onPick={img => { onChange({ dataUrl: img.dataUrl, imgName: img.imgName }); setShowDrive(false); }}
+            onClose={() => setShowDrive(false)} />
         )}
       </div>
 
-      {/* ══ PRODUCT TITLE BAND ══ */}
-      <div style={{
-        background: "linear-gradient(135deg, #F4F1EC 0%, #EDE8DF 100%)",
-        borderBottom: "3px solid #C4913A",
-        padding: "16px 28px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16
-      }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 700, color: "#0D1B2A", lineHeight: 1.1, marginBottom: 5 }}>
-            {r.headline}
+      {/* Product fields */}
+      <div style={{ flex:1, padding:"12px 16px", borderRight:"1px solid #EDE8E2" }}>
+        {field("name",   "Product name / quality…", "Product")}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
+          <div>{field("size",   "e.g. 60×90 inch", "Size")}</div>
+          <div>{field("weight", "e.g. 600 GSM / 1200 gms", "Weight / GSM")}</div>
+        </div>
+      </div>
+
+      {/* Price */}
+      <div style={{ width:130, flexShrink:0, display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center", padding:12, borderRight:"1px solid #EDE8E2", gap:4 }}>
+        <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:".08em" }}>Price / pc</div>
+        <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+          <span style={{ fontSize:13, color:"#888", fontWeight:600 }}>₹</span>
+          <input type="number" min="0" value={row.price} onChange={e => onChange({ price: e.target.value })}
+            placeholder="0"
+            style={{ width:80, border:"1px solid #E3DDD4", borderRadius:6, padding:"6px 8px",
+              fontSize:16, fontWeight:800, color:"#C4913A", textAlign:"right", outline:"none", fontFamily:"inherit" }} />
+        </div>
+      </div>
+
+      {/* Remove / reorder */}
+      <div style={{ width:36, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4, padding:4 }}>
+        {idx > 0       && <button onClick={onMoveUp}   style={{ background:"none", border:"none", cursor:"pointer", color:"#bbb", fontSize:12 }}>▲</button>}
+        {idx < total-1 && <button onClick={onMoveDown} style={{ background:"none", border:"none", cursor:"pointer", color:"#bbb", fontSize:12 }}>▼</button>}
+        <button onClick={onRemove} style={{ background:"none", border:"none", cursor:"pointer", color:"#ddd", fontSize:15, lineHeight:1 }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════ MAIN MODULE ══════════════════ */
+function PictureQuotationModule() {
+  const driveUrl = localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL;
+
+  const [rows, setRows] = React.useState([EMPTY_ROW(), EMPTY_ROW()]);
+  const [client, setClient] = React.useState({ name:"", company:"", address:"", phone:"" });
+  const [meta, setMeta] = React.useState({
+    ref:      `KHT/${new Date().getFullYear()}/${String(Math.floor(Math.random()*900)+100)}`,
+    date:     new Date().toISOString().slice(0,10),
+    validity: "15 days",
+    notes:    "Prices are ex-factory Solapur. GST @12% applicable. Minimum order quantities apply.",
+    showGst:  true,
+    gstRate:  12,
+  });
+  const [contacts, setContacts] = React.useState([]);
+  const [showContacts, setShowContacts] = React.useState(false);
+  const [contactSearch, setContactSearch] = React.useState("");
+  const [toast, setToast] = React.useState(null);
+
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3200); };
+
+  /* Load contacts from dispatch webhook */
+  React.useEffect(() => {
+    const webhookUrl = localStorage.getItem("kht_webhook") || DEFAULT_WEBHOOK_URL;
+    fetch(`${webhookUrl}?t=${Date.now()}`)
+      .then(r => r.json())
+      .then(d => {
+        const data = Array.isArray(d) ? d : (d.data || []);
+        const seen = new Map();
+        data.forEach(row => {
+          const name = row[1]?.trim();
+          if (!name) return;
+          const key = name.toLowerCase();
+          if (!seen.has(key)) seen.set(key, { name, company: row[2]||"", phone: row[5]||"", address: row[3]||"" });
+        });
+        setContacts([...seen.values()]);
+      })
+      .catch(() => {});
+  }, []);
+
+  /* Row operations */
+  const updateRow = (idx, patch) => setRows(prev => prev.map((r, i) => i===idx ? {...r, ...patch} : r));
+  const removeRow = idx => {
+    if (rows.length === 1) { showToast("Need at least one row."); return; }
+    setRows(prev => prev.filter((_, i) => i !== idx));
+  };
+  const moveRow = (idx, dir) => {
+    setRows(prev => {
+      const a = [...prev];
+      const tmp = a[idx]; a[idx] = a[idx+dir]; a[idx+dir] = tmp;
+      return a;
+    });
+  };
+  const addRow = () => setRows(prev => [...prev, EMPTY_ROW()]);
+
+  /* GST calc */
+  const priceTotal = rows.reduce((s, r) => s + (parseFloat(r.price)||0), 0);
+  const gstAmt     = meta.showGst ? Math.round(priceTotal * meta.gstRate / 100) : 0;
+  const grandTotal = priceTotal + gstAmt;
+
+  /* ─────────────────────────────────────────────────────────────
+     PRINT / PDF
+     Strategy: pure static HTML table, images as embedded base64.
+     Tables are the ONLY 100% reliable format for A4 print —
+     no flex, no grid, no transform, no canvas. Just HTML 4 table
+     layout that every browser print engine handles identically.
+  ───────────────────────────────────────────────────────────── */
+  const printQuotation = () => {
+    if (!rows.some(r => r.name || r.dataUrl)) {
+      showToast("Add at least one product before printing.");
+      return;
+    }
+
+    const fmtDate = d => {
+      try { return new Date(d).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }
+      catch { return d; }
+    };
+
+    /* Each row as a <tr> — page-break-inside:avoid keeps image + details together */
+    const rowsHtml = rows.map((r, i) => {
+      const imgHtml = r.dataUrl
+        ? `<img src="${r.dataUrl}"
+             width="110" height="110"
+             style="display:block;width:110px;height:110px;object-fit:cover;border-radius:7px;border:1px solid #E3DDD4;">`
+        : `<div style="width:110px;height:110px;border-radius:7px;background:#F4F1EC;border:1px solid #E3DDD4;display:flex;align-items:center;justify-content:center;font-size:28px;">📷</div>`;
+
+      const priceHtml = r.price
+        ? `<div style="font-size:20px;font-weight:900;color:#C4913A;font-family:'Fraunces',Georgia,serif;">₹${parseFloat(r.price).toLocaleString("en-IN")}</div>
+           <div style="font-size:10px;color:#aaa;margin-top:2px;font-weight:500;">per piece</div>`
+        : `<div style="font-size:14px;color:#bbb;">—</div>`;
+
+      return `
+      <tr style="page-break-inside:avoid;break-inside:avoid;">
+        <td style="width:36px;padding:14px 8px;text-align:center;border:1px solid #E8E4DF;
+                   font-size:12px;font-weight:900;color:#C4913A;vertical-align:middle;
+                   background:${i%2===0?"#fff":"#FDFCFA"};">
+          ${i+1}
+        </td>
+        <td style="width:136px;padding:12px;text-align:center;border:1px solid #E8E4DF;vertical-align:middle;
+                   background:${i%2===0?"#fff":"#FDFCFA"};">
+          ${imgHtml}
+        </td>
+        <td style="padding:14px 20px;border:1px solid #E8E4DF;vertical-align:top;
+                   background:${i%2===0?"#fff":"#FDFCFA"};">
+          <div style="font-size:15px;font-weight:800;color:#0D1B2A;margin-bottom:6px;font-family:'Fraunces',Georgia,serif;">
+            ${r.name || "<span style='color:#ccc;font-style:italic;font-weight:400;'>Unnamed product</span>"}
           </div>
-          <div style={{ fontSize: 11.5, color: "#7A6E62", fontStyle: "italic", marginBottom: 8 }}>
-            "{r.tagline}"
+          ${r.size   ? `<div style="font-size:12px;color:#666;margin-bottom:3px;">📐 <strong>Size:</strong> ${r.size}</div>` : ""}
+          ${r.weight ? `<div style="font-size:12px;color:#666;">⚖️ <strong>Weight / GSM:</strong> ${r.weight}</div>` : ""}
+        </td>
+        <td style="width:160px;padding:14px 16px;text-align:center;border:1px solid #E8E4DF;vertical-align:middle;
+                   background:${i%2===0?"#fff":"#FDFCFA"};">
+          ${priceHtml}
+        </td>
+      </tr>`;
+    }).join("\n");
+
+    const clientHtml = (client.name || client.company) ? `
+      <table width="100%" style="margin-bottom:18px;border-collapse:collapse;">
+        <tr>
+          <td style="background:#F4F1EC;padding:12px 18px;border:1px solid #E3DDD4;border-radius:0 0 8px 8px;vertical-align:top;">
+            <span style="font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:#C4913A;">Prepared For</span><br>
+            ${client.name    ? `<span style="font-size:14px;font-weight:800;color:#0D1B2A;">${client.name}</span><br>`   : ""}
+            ${client.company ? `<span style="font-size:12px;color:#555;">${client.company}</span><br>`                   : ""}
+            ${client.address ? `<span style="font-size:11px;color:#888;">${client.address}</span><br>`                   : ""}
+            ${client.phone   ? `<span style="font-size:11px;color:#888;">📞 ${client.phone}</span>`                       : ""}
+          </td>
+        </tr>
+      </table>` : "";
+
+    const gstRowHtml = meta.showGst ? `
+      <tr>
+        <td colspan="3" style="padding:9px 18px;text-align:right;border:1px solid #E3DDD4;font-size:12px;color:#666;background:#F4F1EC;">
+          GST @ ${meta.gstRate}%
+        </td>
+        <td style="padding:9px 16px;text-align:center;border:1px solid #E3DDD4;font-size:13px;font-weight:700;background:#F4F1EC;">
+          ₹${gstAmt.toLocaleString("en-IN")}
+        </td>
+      </tr>` : "";
+
+    const win = window.open("", "_blank");
+    win.document.write(`<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8">
+  <title>Quotation · ${meta.ref}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    /* A4 with sensible margins — content never overflows a page boundary */
+    @page { size:A4 portrait; margin:10mm 12mm 12mm 12mm; }
+    body {
+      font-family:'Plus Jakarta Sans',Arial,sans-serif;
+      font-size:13px;
+      color:#0D1B2A;
+      -webkit-print-color-adjust:exact;
+      print-color-adjust:exact;
+      color-adjust:exact;
+    }
+    table { border-collapse:collapse; }
+    img   { display:block; border:0; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ COMPANY HEADER ═══ -->
+  <table width="100%" style="margin-bottom:0;background:#0D1B2A;border-radius:8px 8px 0 0;">
+    <tr>
+      <td style="padding:16px 20px;vertical-align:top;">
+        <div style="color:#C4913A;font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:700;">Kshirsagar Hometextiles</div>
+        <div style="color:rgba(255,255,255,.5);font-size:10px;margin-top:3px;">Est. 1947 · Solapur, India · terrytowel.in</div>
+        <div style="color:rgba(255,255,255,.38);font-size:9.5px;margin-top:2px;">+91 98225 49824 · info@kshirsagar.com · GST: 27ANLPK9383J1Z8</div>
+      </td>
+      <td style="padding:16px 20px;text-align:right;vertical-align:top;">
+        <div style="color:rgba(255,255,255,.38);font-size:9px;text-transform:uppercase;letter-spacing:.14em;">Price Quotation</div>
+        <div style="color:#fff;font-size:16px;font-weight:800;margin-top:3px;">${meta.ref}</div>
+        <div style="color:rgba(255,255,255,.55);font-size:10.5px;margin-top:3px;">${fmtDate(meta.date)}</div>
+        <div style="color:rgba(255,255,255,.38);font-size:9.5px;margin-top:2px;">Valid: ${meta.validity}</div>
+      </td>
+    </tr>
+  </table>
+
+  ${clientHtml}
+  ${!clientHtml ? '<div style="height:14px"></div>' : ''}
+
+  <!-- ═══ PRODUCTS TABLE ═══ -->
+  <table width="100%" style="margin-bottom:0;border:1px solid #E8E4DF;">
+    <thead>
+      <tr style="background:#0D1B2A;">
+        <th style="width:36px;padding:10px 8px;text-align:center;border:1px solid #1a2f44;color:rgba(255,255,255,.6);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">#</th>
+        <th style="width:136px;padding:10px;text-align:center;border:1px solid #1a2f44;color:rgba(255,255,255,.6);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Photo</th>
+        <th style="padding:10px 20px;text-align:left;border:1px solid #1a2f44;color:rgba(255,255,255,.6);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Product Details</th>
+        <th style="width:160px;padding:10px 16px;text-align:center;border:1px solid #1a2f44;color:rgba(255,255,255,.6);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Price / Piece</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+    <tfoot>
+      ${gstRowHtml}
+      <tr style="background:#0D1B2A;">
+        <td colspan="3" style="padding:12px 18px;text-align:right;border:1px solid #1a2f44;color:#C4913A;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">
+          Grand Total
+        </td>
+        <td style="padding:12px 16px;text-align:center;border:1px solid #1a2f44;">
+          <div style="font-size:22px;font-weight:900;color:#fff;font-family:'Fraunces',Georgia,serif;">
+            ₹${grandTotal.toLocaleString("en-IN")}
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ background: "#0D1B2A", color: "#C4913A", fontSize: 9.5, fontWeight: 700, padding: "3px 12px", borderRadius: 20, letterSpacing: ".05em" }}>
-              {r.targetSegment}
-            </span>
-            {p.fields.quality && (
-              <span style={{ background: "transparent", border: "1.5px solid #C4913A", color: "#8B6520", fontSize: 9.5, fontWeight: 600, padding: "3px 12px", borderRadius: 20 }}>
-                {p.fields.quality}
-              </span>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- ═══ TERMS ═══ -->
+  ${meta.notes ? `
+  <table width="100%" style="margin-top:0;">
+    <tr>
+      <td style="padding:10px 18px;background:#F4F1EC;border:1px solid #E3DDD4;border-top:none;border-radius:0 0 8px 8px;">
+        <span style="font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#C4913A;">Terms &amp; Notes</span><br>
+        <span style="font-size:11px;color:#666;">${meta.notes}</span>
+      </td>
+    </tr>
+  </table>` : ""}
+
+  <!-- ═══ SIGN-OFF ═══ -->
+  <table width="100%" style="margin-top:22px;">
+    <tr>
+      <td style="font-size:9.5px;color:#bbb;vertical-align:bottom;">This is a computer-generated quotation. · terrytowel.in</td>
+      <td style="text-align:right;vertical-align:bottom;width:200px;">
+        <div style="border-top:1.5px solid #0D1B2A;padding-top:6px;">
+          <div style="font-size:10px;color:#555;font-weight:600;">Authorised Signatory</div>
+          <div style="font-size:9px;color:#999;margin-top:2px;">Kshirsagar Hometextiles</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+</body></html>`);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 800);
+  };
+
+  /* ═══ EDITOR UI ═══ */
+  const filteredContacts = contacts.filter(c =>
+    !contactSearch || c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    (c.company||"").toLowerCase().includes(contactSearch.toLowerCase())
+  );
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="sh" style={{ flexWrap:"wrap", gap:10 }}>
+        <div>
+          <div className="st">🧾 Picture Quotation</div>
+          <div className="text-sm text-lt" style={{ marginTop:2 }}>Product photos with pricing · Print to PDF</div>
+        </div>
+        <button className="btn btn-gold" onClick={printQuotation} style={{ fontSize:14, padding:"10px 22px", gap:6 }}>
+          🖨️ Print / Save PDF
+        </button>
+      </div>
+
+      {toast && (
+        <div style={{ position:"fixed", bottom:32, left:"50%", transform:"translateX(-50%)",
+          background:"#0D1B2A", color:"#fff", padding:"12px 24px", borderRadius:12,
+          fontSize:13, fontWeight:600, zIndex:9999, boxShadow:"0 8px 32px rgba(0,0,0,.3)", whiteSpace:"nowrap" }}>
+          {toast}
+        </div>
+      )}
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 290px", gap:18, padding:"16px 0" }}>
+
+        {/* ── LEFT: client + rows ── */}
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+          {/* Client card */}
+          <div className="card" style={{ padding:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A" }}>
+                Prepared For
+              </div>
+              {contacts.length > 0 && (
+                <button onClick={() => setShowContacts(s => !s)}
+                  style={{ fontSize:11, padding:"4px 12px", border:"1.5px solid #C4913A", borderRadius:20,
+                    background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#C4913A",
+                    cursor:"pointer", fontWeight:700 }}>
+                  👤 Pick Contact ({contacts.length})
+                </button>
+              )}
+            </div>
+
+            {/* Contact picker dropdown */}
+            {showContacts && (
+              <div style={{ marginBottom:12, border:"1px solid #E3DDD4", borderRadius:8, overflow:"hidden" }}>
+                <div style={{ padding:"8px 10px", borderBottom:"1px solid #E3DDD4", background:"#F4F1EC" }}>
+                  <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
+                    placeholder="Search contacts…" autoFocus
+                    style={{ width:"100%", border:"1px solid #ddd", borderRadius:6, padding:"6px 10px",
+                      fontSize:12, outline:"none", fontFamily:"inherit" }} />
+                </div>
+                <div style={{ maxHeight:200, overflowY:"auto" }}>
+                  {filteredContacts.length === 0 ? (
+                    <div style={{ padding:16, textAlign:"center", color:"#bbb", fontSize:12 }}>No contacts found</div>
+                  ) : filteredContacts.map((c, i) => (
+                    <div key={i} onClick={() => { setClient({ name:c.name, company:c.company||"", address:c.address||"", phone:c.phone||"" }); setShowContacts(false); setContactSearch(""); }}
+                      style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f0ece6",
+                        display:"flex", flexDirection:"column", gap:2 }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#FDF8F2"}
+                      onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+                      <div style={{ fontWeight:700, fontSize:13 }}>{c.name}</div>
+                      {c.company && <div style={{ fontSize:11, color:"#888" }}>{c.company}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
-        </div>
-        {showPrice && (
-          <div style={{
-            background: "#0D1B2A",
-            borderRadius: 12,
-            padding: "14px 20px",
-            textAlign: "center",
-            flexShrink: 0,
-            minWidth: 110,
-            border: "2px solid #C4913A"
-          }}>
-            <div style={{ fontSize: 7.5, color: "#C4913A", fontWeight: 700, letterSpacing: ".15em", textTransform: "uppercase", marginBottom: 4 }}>
-              Price
-            </div>
-            <div style={{ fontFamily: "Times New Roman, serif", fontSize: 18, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
-              {p.fields.price}
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* ══ IMAGE GALLERY ══ */}
-      <div style={{ padding: "16px 20px", background: "#FDFCFA" }}>
-        <div style={{ fontSize: 7.5, letterSpacing: ".2em", color: "#C4913A", fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>
-          Product Gallery · {n} Photo{n > 1 ? "s" : ""}
-        </div>
-        <div style={{ border: "1px solid #EDE9E1", borderRadius: 8, overflow: "hidden" }}>
-          {renderGallery()}
-        </div>
-      </div>
-
-      {/* ══ BODY: Info ══ */}
-      <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 20 }}>
-
-        {/* LEFT: Description + Fabric + USPs */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ background: "#F8F6F2", borderRadius: 10, padding: "14px 16px", borderLeft: "4px solid #C4913A" }}>
-            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 7, textTransform: "uppercase" }}>Product Overview</div>
-            <p style={{ fontSize: 11.5, color: "#2a2a2a", lineHeight: 1.8, margin: 0 }}>{r.description}</p>
-          </div>
-
-          {r.fabricObservation && (
-            <div style={{ background: "#fff", border: "1px solid #E3DDD4", borderRadius: 10, padding: "12px 16px" }}>
-              <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Fabric Analysis</div>
-              <div style={{ fontSize: 11, color: "#555", lineHeight: 1.7, fontStyle: "italic" }}>{r.fabricObservation}</div>
-            </div>
-          )}
-
-          <div>
-            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", paddingBottom: 5, borderBottom: "1px solid #EDE9E1" }}>Key Advantages</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px" }}>
-              {r.usp?.map((u, i) => (
-                <div key={i} style={{ display: "flex", gap: 7, fontSize: 11, color: "#333", alignItems: "flex-start" }}>
-                  <span style={{ color: "#C4913A", fontWeight: 900, fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>✓</span>
-                  <span style={{ lineHeight: 1.55 }}>{u}</span>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              {[["name","Contact Name"],["company","Company / Hotel"],["address","Address"],["phone","Phone"]].map(([k,ph]) => (
+                <div key={k} style={{ gridColumn: k==="address" ? "1/-1" : "auto" }}>
+                  <label style={{ fontSize:10, color:"#999", display:"block", marginBottom:3 }}>{ph}</label>
+                  <input value={client[k]} onChange={e => setClient(c => ({...c,[k]:e.target.value}))} placeholder={ph}
+                    style={{ width:"100%", border:"1px solid #E3DDD4", borderRadius:6, padding:"7px 10px",
+                      fontSize:13, outline:"none", fontFamily:"inherit" }} />
                 </div>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* RIGHT: Specs + Care + Packaging + Contact */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 7, textTransform: "uppercase", paddingBottom: 5, borderBottom: "1px solid #EDE9E1" }}>Specifications</div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <tbody>
-                {[
-                  ["Quality", p.fields.quality],
-                  ["Border Style", p.fields.style],
-                  ["Design", p.fields.design],
-                  ["Size", p.fields.size],
-                  ["Weight", `${p.fields.weight} gms / pc`],
-                  ["GSM", gsm ? `${gsm} GSM` : "—"],
-                  ...(showPrice ? [["Price", p.fields.price]] : []),
-                ].map(([k, v], i) => (
-                  <tr key={k} style={{ background: i % 2 === 0 ? "#FAFAF8" : "#fff" }}>
-                    <td style={{ padding: "6px 9px", color: "#999", fontWeight: 600, borderBottom: "1px solid #F0EDE8", width: "44%", fontSize: 10 }}>{k}</td>
-                    <td style={{
-                      padding: "6px 9px",
-                      color: k === "Price" ? "#C4913A" : "#111",
-                      fontWeight: k === "Price" ? 800 : 700,
-                      borderBottom: "1px solid #F0EDE8",
-                      fontFamily: k === "Price" || k === "GSM" || k === "Weight" ? "Times New Roman, serif" : "inherit",
-                      fontSize: k === "Price" ? 13 : 11
-                    }}>{v}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {r.careInstructions && (
-            <div style={{ background: "#F4F1EC", borderRadius: 9, padding: "10px 13px", border: "1px solid #E3DDD4" }}>
-              <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Care Instructions</div>
-              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.65 }}>{r.careInstructions}</div>
+          {/* Products table */}
+          <div className="card" style={{ padding:0, overflow:"hidden" }}>
+            <div style={{ padding:"12px 16px", borderBottom:"1.5px solid #EDE8E2",
+              display:"flex", justifyContent:"space-between", alignItems:"center", background:"#FDFCFA" }}>
+              <div style={{ fontWeight:700, fontSize:13, color:"#0D1B2A" }}>
+                Products · <span style={{ color:"#C4913A" }}>{rows.length}</span> item{rows.length!==1?"s":""}
+              </div>
+              <button className="btn btn-out btn-sm" onClick={addRow}><Plus size={12}/> Add Row</button>
             </div>
-          )}
 
-          {r.packagingNote && (
-            <div style={{ background: "#F4F1EC", borderRadius: 9, padding: "10px 13px", border: "1px solid #E3DDD4" }}>
-              <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Packaging & MOQ</div>
-              <div style={{ fontSize: 10.5, color: "#555", lineHeight: 1.65 }}>{r.packagingNote}</div>
+            {/* Column headers */}
+            <div style={{ display:"flex", background:"#F4F1EC", borderBottom:"1px solid #EDE8E2",
+              fontSize:9, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em", color:"#999" }}>
+              <div style={{ width:32, padding:"6px 0", textAlign:"center", borderRight:"1px solid #EDE8E2" }}>#</div>
+              <div style={{ width:140, padding:"6px 12px", borderRight:"1px solid #EDE8E2" }}>Photo</div>
+              <div style={{ flex:1, padding:"6px 16px", borderRight:"1px solid #EDE8E2" }}>Product Details</div>
+              <div style={{ width:130, padding:"6px 0", textAlign:"center", borderRight:"1px solid #EDE8E2" }}>Price / pc</div>
+              <div style={{ width:36 }}></div>
             </div>
-          )}
 
-          <div style={{ background: "#0D1B2A", borderRadius: 9, padding: "12px 14px", marginTop: "auto" }}>
-            <div style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#C4913A", fontWeight: 700, marginBottom: 6, textTransform: "uppercase" }}>Get in Touch</div>
-            <div style={{ fontSize: 11, color: "#fff", fontWeight: 700, marginBottom: 2 }}>Kshirsagar Hometextiles</div>
-            <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.45)", lineHeight: 1.65 }}>Nath Pride, Near Civil Hospital<br />Civil Chowk, Solapur — 413003</div>
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
-              <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>📞 +91 98225 49824</div>
-              <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>✉️ info@kshirsagar.com</div>
-              <div style={{ fontSize: 10, color: "#C4913A", fontWeight: 600 }}>🌐 terrytowel.in</div>
+            {rows.map((r, i) => (
+              <QuoteRow key={r.id} row={r} idx={i} total={rows.length}
+                onChange={patch => updateRow(i, patch)}
+                onRemove={() => removeRow(i)}
+                onMoveUp={() => moveRow(i, -1)}
+                onMoveDown={() => moveRow(i, 1)}
+                driveUrl={driveUrl} />
+            ))}
+
+            <div style={{ padding:"10px 12px", background:"#FDFCFA" }}>
+              <button className="btn btn-out" onClick={addRow}
+                style={{ width:"100%", borderStyle:"dashed", color:"var(--text-light)", fontSize:12 }}>
+                <Plus size={13}/> Add Another Product
+              </button>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ══ FOOTER ══ */}
-      <div style={{
-        background: "#C4913A",
-        padding: "8px 28px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <div style={{ fontSize: 8.5, color: "#0D1B2A", fontWeight: 700, letterSpacing: ".04em" }}>
-          GST: 27ANLPK9383J1Z8 · info@kshirsagar.com
-        </div>
-        <div style={{ fontSize: 9, color: "#0D1B2A", fontWeight: 900, letterSpacing: ".12em" }}>
-          TERRYTOWEL.IN
-        </div>
-      </div>
-    </div>
-  );
-}
+        {/* ── RIGHT: meta + totals ── */}
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
-
-function ProductDesignerModule() {
-  const [products, setProducts] = useState([EMPTY_PRODUCT()]);
-  const [globalLoading, setGlobalLoading] = useState(false);
-  const [saveStatus, setSaveStatus] = useState({});
-  const [toast, setToast] = useState(null);
-  // Quotation / brochure header fields
-  const [clientName, setClientName] = useState("");
-  const [clientCompany, setClientCompany] = useState("");
-  const [quoteRef, setQuoteRef] = useState("");
-  const [quoteDate, setQuoteDate] = useState("");
-  const driveUrl = localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL;
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
-
-  const updateProduct = (idx, patch) => {
-    setProducts(prev => prev.map((p, i) => {
-      if (i !== idx) return p;
-      const u = { ...p };
-      if (patch.photos !== undefined) u.photos = patch.photos;
-      if (patch.result !== undefined) u.result = patch.result;
-      if (patch.loading !== undefined) u.loading = patch.loading;
-      if (patch.description !== undefined) u.description = patch.description;
-      if (patch.fields !== undefined) u.fields = patch.fields;
-      return u;
-    }));
-  };
-
-  const removeProduct = (idx) => {
-    if (products.length === 1) { showToast("Need at least one product slot."); return; }
-    setProducts(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const generateOne = async (idx) => {
-    const p = products[idx];
-    if (!p.photos.length) return;
-    const key = getAnthropicKey();
-    if (!key) { showToast("⚠️ Claude API key not set — go to Dispatch → ⚙️ Settings."); return; }
-    updateProduct(idx, { loading: true, result: null });
-    const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
-    const systemPrompt = `You are a luxury B2B hotel supply marketing expert for Kshirsagar Hometextiles (terrytowel.in), premium Indian exporter since 1947, Arch of Europe Gold Star Award winners. Create professional brochure copy. Return ONLY valid JSON (no markdown, no backticks):
-{"tagline":"6-8 word luxury tagline","headline":"3-5 word premium headline","description":"Three-sentence premium description for hotel procurement directors","usp":["USP1","USP2","USP3","USP4"],"fabricObservation":"Two sentences on fabric quality, weave, border, texture from photos","targetSegment":"Specific hospitality segment","careInstructions":"Hotel laundry care instructions","packagingNote":"Packaging & MOQ details","whatsappLine":"Punchy WhatsApp line for hotel buyer under 20 words"}`;
-    // For Drive photos without base64 yet, try fetching via Apps Script proxy
-    const resolvedPhotos = await Promise.all(
-      p.photos.slice(0, 4).map(async ph => {
-        if (ph.base64) return ph;
-        if (!ph.driveFileId && !ph.driveId) return ph;
-        try {
-          // Ask Apps Script to return base64 for this Drive file
-          const fileId = ph.driveFileId || ph.driveId;
-          const r = await fetch(`${driveUrl}?action=getBase64&id=${fileId}&t=${Date.now()}`);
-          const d = await r.json();
-          if (d.base64) return { ...ph, base64: d.base64, mimeType: d.mimeType || ph.mimeType };
-        } catch {}
-        return ph; // keep without base64 — won't be sent to Claude but still in brochure
-      })
-    );
-    const imageContent = resolvedPhotos.filter(ph => ph.base64).map(ph => ({ type: "image", source: { type: "base64", media_type: ph.mimeType, data: ph.base64 } }));
-    const userPrompt = `Quality: ${p.fields.quality}\nBorder: ${p.fields.style}\nDesign: ${p.fields.design}\nSize: ${p.fields.size}\nWeight: ${p.fields.weight}g/pc${gsm ? ` (${gsm} GSM)` : ""}${p.fields.price ? `\nPrice: ${p.fields.price}` : ""}\nPhotos: ${p.photos.length}\n${p.description ? `\nExtra details:\n${p.description}` : ""}\nAnalyse all photos and write premium brochure copy.`;
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1200, system: systemPrompt, messages: [{ role: "user", content: [...imageContent, { type: "text", text: userPrompt }] }] })
-      });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${res.status}`); }
-      const data = await res.json();
-      const parsed = JSON.parse(data.content?.[0]?.text?.replace(/```json|```/g, "").trim() || "{}");
-      updateProduct(idx, { loading: false, result: parsed });
-    } catch (e) {
-      updateProduct(idx, { loading: false });
-      showToast(`❌ Product ${idx + 1}: ${e.message}`);
-    }
-  };
-
-  const generateAll = async () => {
-    const pending = products.map((p, i) => i).filter(i => products[i].photos.length > 0 && !products[i].result);
-    if (!pending.length) { showToast("All products already generated — or add photos first."); return; }
-    setGlobalLoading(true);
-    for (const idx of pending) await generateOne(idx);
-    setGlobalLoading(false);
-    showToast(`✅ ${pending.length} card${pending.length > 1 ? "s" : ""} generated!`);
-  };
-
-  const loadHtml2Canvas = () => new Promise((resolve, reject) => {
-    if (window.html2canvas) return resolve(window.html2canvas);
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-    s.onload = () => resolve(window.html2canvas); s.onerror = reject;
-    document.head.appendChild(s);
-  });
-
-  const saveToDrive = async (idx) => {
-    const p = products[idx];
-    if (!p.result) return;
-    setSaveStatus(s => ({ ...s, [p.id]: "saving" }));
-    try {
-      const h2c = await loadHtml2Canvas();
-      const cardEl = document.querySelector(`[data-card-id="${p.id}"]`);
-      if (!cardEl) throw new Error("Card element not found");
-
-      // Clone into a fixed-width off-screen container so html2canvas
-      // always captures at exactly 900px wide — prevents any distortion.
-      const CAPTURE_W = 900;
-      const container = document.createElement("div");
-      container.style.cssText = [
-        `position:fixed`, `top:-9999px`, `left:-9999px`,
-        `width:${CAPTURE_W}px`, `background:#fff`,
-        `font-family:'Plus Jakarta Sans',sans-serif`,
-        `overflow:hidden`, `z-index:-1`
-      ].join(";");
-      const clone = cardEl.cloneNode(true);
-      clone.style.width = CAPTURE_W + "px";
-      clone.style.maxWidth = CAPTURE_W + "px";
-      container.appendChild(clone);
-      document.body.appendChild(container);
-
-      // Small delay so images inside clone can paint
-      await new Promise(r => setTimeout(r, 300));
-
-      const canvas = await h2c(clone, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        width: CAPTURE_W,
-        windowWidth: CAPTURE_W,
-      });
-
-      document.body.removeChild(container);
-
-      const base64 = canvas.toDataURL("image/png").split(",")[1];
-      const filename = `KHT-Brochure-${(p.fields.quality || "Product").replace(/\s+/g, "-")}-${Date.now()}.png`;
-      const resp = await fetch(driveUrl, { method: "POST", body: JSON.stringify({ base64, mimeType: "image/png", filename, category: "Marketing Cards" }) });
-      const data = await resp.json();
-      if (data.ok) { setSaveStatus(s => ({ ...s, [p.id]: "saved" })); showToast(`✅ Saved to Drive → Marketing Cards!`); }
-      else throw new Error("Drive upload failed");
-    } catch (e) {
-      setSaveStatus(s => ({ ...s, [p.id]: null }));
-      showToast(`❌ Save failed: ${e.message}`);
-    }
-  };
-
-  const printCatalogue = async () => {
-    const cards = document.querySelectorAll("[data-product-card='true']");
-    if (!cards.length) { showToast("Generate at least one card first."); return; }
-    showToast("⏳ Preparing PDF — please wait…");
-    try {
-      const h2c = await loadHtml2Canvas();
-      const CAPTURE_W = 900;
-
-      // ── Capture every card as a hi-res PNG via html2canvas ──
-      // This bakes background-images, gradients and all CSS into pixels,
-      // so the print engine receives plain <img> tags — zero overflow possible.
-      const dataUrls = await Promise.all(Array.from(cards).map(async (cardEl) => {
-        const wrap = document.createElement("div");
-        wrap.style.cssText = `position:fixed;top:-9999px;left:0;width:${CAPTURE_W}px;background:#fff;z-index:-999;`;
-        const clone = cardEl.cloneNode(true);
-        clone.style.cssText += `width:${CAPTURE_W}px;max-width:${CAPTURE_W}px;`;
-        wrap.appendChild(clone);
-        document.body.appendChild(wrap);
-        await new Promise(r => setTimeout(r, 350)); // let backgrounds paint
-        const canvas = await h2c(clone, {
-          scale: 2, useCORS: true, allowTaint: true,
-          backgroundColor: "#ffffff", logging: false,
-          width: CAPTURE_W, windowWidth: CAPTURE_W,
-        });
-        document.body.removeChild(wrap);
-        return canvas.toDataURL("image/jpeg", 0.93); // jpeg smaller than png, still crisp
-      }));
-
-      // ── Open print window with canvas images sized to A4 ──
-      // Each page = one <img width:210mm> — can NEVER overflow or get cut.
-      const win = window.open("", "_blank");
-      const pages = dataUrls.map((url, idx) => `
-        <div class="page"${idx > 0 ? ' style="page-break-before:always"' : ''}>
-          <img src="${url}" style="width:210mm;height:auto;display:block;max-height:297mm;">
-        </div>`).join("");
-      win.document.write(`<!DOCTYPE html><html><head>
-        <meta charset="utf-8">
-        <title>KHT${clientName ? ` · ${clientName}` : ""} · terrytowel.in</title>
-        <style>
-          *{margin:0;padding:0;box-sizing:border-box}
-          @page{size:A4 portrait;margin:0}
-          html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-          .page{width:210mm;overflow:hidden;background:#fff}
-          @media screen{body{background:#888;padding:20px 0}.page{margin:0 auto 20px;box-shadow:0 4px 24px rgba(0,0,0,.3)}}
-        </style>
-      </head><body>${pages}</body></html>`);
-      win.document.close();
-      // Wait for images to load in the new window before printing
-      win.onload = () => setTimeout(() => { win.focus(); win.print(); }, 400);
-      setTimeout(() => { try { win.focus(); win.print(); } catch(e){} }, 2000);
-    } catch(e) {
-      showToast(`❌ Print failed: ${e.message}`);
-    }
-  };
-
-  const saveAllToDrive = async () => {
-    const unsaved = products.map((p, i) => i).filter(i => products[i].result && saveStatus[products[i].id] !== "saved");
-    if (!unsaved.length) { showToast("No new cards to save."); return; }
-    for (const idx of unsaved) await saveToDrive(idx);
-  };
-
-  const readyCount = products.filter(p => p.result).length;
-  const pendingCount = products.filter(p => p.photos.length > 0 && !p.result && !p.loading).length;
-  const hasUnsaved = products.some(p => p.result && saveStatus[p.id] !== "saved");
-
-  return (
-    <div>
-      {/* HEADER */}
-      <div className="sh">
-        <div>
-          <div className="st">🎨 Product Designer</div>
-          <div className="text-sm text-lt" style={{ marginTop: 2 }}>Brochure & quotation creator · Drive photos · Claude Vision</div>
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          {readyCount > 0 && <><button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print / PDF</button>{hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All</button>}</>}
-          <button className="btn btn-out btn-sm" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])}><Plus size={13} /> Add Product</button>
-        </div>
-      </div>
-
-      {toast && <div style={{ position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)", background: "#0D1B2A", color: "#fff", padding: "12px 24px", borderRadius: 12, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(0,0,0,.3)", whiteSpace: "nowrap" }}>{toast}</div>}
-
-      {/* ── CLIENT / QUOTATION HEADER SECTION ── */}
-      <div className="card" style={{ marginBottom: 20, background: "linear-gradient(135deg, var(--gold-pp), var(--bg))", border: "1.5px solid var(--gold)" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gold)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>📋 Quotation / Brochure Header <span style={{ color: "var(--text-light)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional — only shows on output if filled)</span></div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
-          <div>
-            <label className="lbl" style={{ fontSize: 10 }}>To — Client Name</label>
-            <input className="inp" style={{ fontSize: 12, padding: "8px 12px" }} value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Mr. Rajesh Kumar" />
+          <div className="card" style={{ padding:16 }}>
+            <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A", marginBottom:12 }}>
+              Quotation Details
+            </div>
+            {[["ref","Reference No."],["date","Date"],["validity","Valid For"]].map(([k,lbl]) => (
+              <div key={k} style={{ marginBottom:10 }}>
+                <label style={{ fontSize:10, color:"#999", display:"block", marginBottom:3 }}>{lbl}</label>
+                <input value={meta[k]} onChange={e => setMeta(m => ({...m,[k]:e.target.value}))}
+                  type={k==="date" ? "date" : "text"}
+                  style={{ width:"100%", border:"1px solid #E3DDD4", borderRadius:6, padding:"7px 10px",
+                    fontSize:12, outline:"none", fontFamily:"inherit" }} />
+              </div>
+            ))}
+            <div>
+              <label style={{ fontSize:10, color:"#999", display:"block", marginBottom:3 }}>Terms / Notes</label>
+              <textarea value={meta.notes} onChange={e => setMeta(m => ({...m, notes:e.target.value}))} rows={3}
+                style={{ width:"100%", border:"1px solid #E3DDD4", borderRadius:6, padding:"7px 10px",
+                  fontSize:11, outline:"none", fontFamily:"inherit", resize:"vertical" }} />
+            </div>
           </div>
-          <div>
-            <label className="lbl" style={{ fontSize: 10 }}>Client Company</label>
-            <input className="inp" style={{ fontSize: 12, padding: "8px 12px" }} value={clientCompany} onChange={e => setClientCompany(e.target.value)} placeholder="Grand Hyatt Mumbai" />
-          </div>
-          <div>
-            <label className="lbl" style={{ fontSize: 10 }}>Quote / Ref No.</label>
-            <input className="inp" style={{ fontSize: 12, padding: "8px 12px" }} value={quoteRef} onChange={e => setQuoteRef(e.target.value)} placeholder="KHT/2026/042" />
-          </div>
-          <div>
-            <label className="lbl" style={{ fontSize: 10 }}>Date</label>
-            <input className="inp" type="date" style={{ fontSize: 12, padding: "8px 12px" }} value={quoteDate} onChange={e => setQuoteDate(e.target.value)} />
-          </div>
-        </div>
-        {(clientName || clientCompany) && (
-          <div style={{ marginTop: 10, padding: "8px 14px", background: "var(--gold-pp)", border: "1px solid var(--gold)", borderRadius: 8, fontSize: 11, color: "var(--gold)", fontWeight: 600 }}>
-            ✓ This brochure will be addressed to: <strong>{[clientName, clientCompany].filter(Boolean).join(" · ")}</strong>
-          </div>
-        )}
-      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 24, alignItems: "start" }}>
-        {/* LEFT: PRODUCT SLOTS */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {products.map((p, idx) => (
-            <SingleProductSlot key={p.id} p={p} idx={idx} onChange={updateProduct} onRemove={removeProduct} onGenerate={generateOne} driveUrl={driveUrl} />
-          ))}
-          <button className="btn btn-out" onClick={() => setProducts(prev => [...prev, EMPTY_PRODUCT()])} style={{ width: "100%", padding: 14, borderStyle: "dashed", color: "var(--text-light)" }}>
-            <Plus size={15} /> Add Another Product
-          </button>
-          {pendingCount > 0 && (
-            <button onClick={generateAll} disabled={globalLoading} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", cursor: globalLoading ? "not-allowed" : "pointer", background: globalLoading ? "#ccc" : "linear-gradient(135deg, var(--gold) 0%, #E8C46A 100%)", color: "var(--navy)", fontWeight: 800, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 4px 20px rgba(196,145,58,.3)" }}>
-              {globalLoading ? (<><span style={{ width: 16, height: 16, border: "3px solid rgba(0,0,0,.2)", borderTop: "3px solid var(--navy)", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />Generating…</>) : `✨ Generate All ${pendingCount} Card${pendingCount > 1 ? "s" : ""}`}
+          <div className="card" style={{ padding:16 }}>
+            <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A", marginBottom:14 }}>
+              Summary
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
+              <span style={{ color:"#666" }}>Sum of prices</span>
+              <span style={{ fontWeight:600 }}>₹{priceTotal.toLocaleString("en-IN")}</span>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+              fontSize:12, marginBottom:10, paddingBottom:10, borderBottom:"1px solid #E3DDD4" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <input type="checkbox" id="gst" checked={meta.showGst}
+                  onChange={e => setMeta(m => ({...m, showGst:e.target.checked}))} />
+                <label htmlFor="gst" style={{ color:"#666", cursor:"pointer" }}>GST</label>
+                <input type="number" value={meta.gstRate} disabled={!meta.showGst}
+                  onChange={e => setMeta(m => ({...m, gstRate:parseFloat(e.target.value)||0}))}
+                  style={{ width:36, border:"1px solid #E3DDD4", borderRadius:4, padding:"2px 5px", fontSize:11, outline:"none" }} />
+                <span style={{ color:"#888", fontSize:11 }}>%</span>
+              </div>
+              <span style={{ fontWeight:600 }}>₹{gstAmt.toLocaleString("en-IN")}</span>
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:17, fontWeight:800 }}>
+              <span style={{ color:"#0D1B2A" }}>Grand Total</span>
+              <span style={{ color:"#C4913A", fontFamily:"'Fraunces',serif" }}>₹{grandTotal.toLocaleString("en-IN")}</span>
+            </div>
+            <button className="btn btn-gold" onClick={printQuotation}
+              style={{ width:"100%", marginTop:16, fontSize:14, padding:12, gap:6 }}>
+              🖨️ Print / Save as PDF
             </button>
-          )}
-        </div>
+          </div>
 
-        {/* RIGHT: BROCHURE CARDS */}
-        <div>
-          {readyCount === 0 && (
-            <div style={{ background: "var(--bg)", border: "2px dashed var(--border)", borderRadius: 20, minHeight: 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40, textAlign: "center" }}>
-              <div style={{ fontSize: 52, marginBottom: 14, opacity: .2 }}>📄</div>
-              <div style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 600, color: "var(--text-light)", marginBottom: 8 }}>Brochure Preview</div>
-              <div className="text-sm text-lt" style={{ maxWidth: 300 }}>Select photos from Drive or upload, fill specs, add a price if needed, and click Generate</div>
-            </div>
-          )}
-
-          {products.map((p, idx) => p.result && (
-            <div key={p.id} style={{ marginBottom: 28 }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <button className="btn btn-out btn-sm" style={{ flex: 1 }} onClick={() => {
-                  const r = p.result; const gsm = calcGsmUtil(p.fields.size, p.fields.weight);
-                  const msg = `*${(p.fields.quality||"Product").toUpperCase()}*\n\n${r.tagline}\n\n${r.whatsappLine}\n\n📐 ${p.fields.size} | ⚖️ ${p.fields.weight}g/pc${gsm ? ` · ${gsm} GSM` : ""}${p.fields.price ? ` | 💰 ${p.fields.price}` : ""}\n🏷️ ${p.fields.style} · ${p.fields.design}\n\n📞 +91 98225 49824 | terrytowel.in`;
-                  navigator.clipboard.writeText(msg).then(() => showToast("📲 WhatsApp pitch copied!"));
-                }}>📲 WhatsApp</button>
-                <button className="btn btn-out btn-sm" style={{ flex: 1 }} onClick={() => generateOne(idx)}>🔁 Redo</button>
-                <button className={saveStatus[p.id] === "saved" ? "btn btn-out btn-sm" : "btn btn-gold btn-sm"} style={{ flex: 1.5, opacity: saveStatus[p.id] === "saving" ? .6 : 1 }} onClick={() => saveToDrive(idx)} disabled={saveStatus[p.id] === "saving" || saveStatus[p.id] === "saved"}>
-                  {saveStatus[p.id] === "saving" ? "☁️ Saving…" : saveStatus[p.id] === "saved" ? "✅ Saved" : "☁️ Save to Drive"}
-                </button>
-              </div>
-              <div data-card-id={p.id} style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 6px 32px rgba(13,27,42,.14)", border: "1px solid #E3DDD4" }}>
-                <BrochureCard p={p} clientName={clientName} clientCompany={clientCompany} quoteRef={quoteRef} quoteDate={quoteDate} />
-              </div>
-            </div>
-          ))}
-
-          {readyCount > 1 && (
-            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-mid)" }}>📋 {readyCount} cards ready</div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button className="btn btn-out btn-sm" onClick={printCatalogue}>🖨️ Print Full Catalogue</button>
-                {hasUnsaved && <button className="btn btn-gold btn-sm" onClick={saveAllToDrive}>☁️ Save All to Drive</button>}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 }
-
 
 export default function App() {
   const [active, setActive] = useState("home");
@@ -3024,13 +2805,13 @@ export default function App() {
     { id: "home", icon: "🏠", label: "Dashboard" },
     { id: "dispatch", icon: "📦", label: "Dispatch", section: "OPERATIONS" },
     { id: "products", icon: "🏷️", label: "Products" },
-    { id: "designer", icon: "🎨", label: "Product Designer" },
+    { id: "designer", icon: "🧾", label: "Quotation" },
     { id: "crm", icon: "👥", label: "CRM & Sales", section: "GROWTH" },
     { id: "marketing", icon: "📣", label: "Marketing" },
     { id: "documents", icon: "📂", label: "Documents", section: "STORAGE" },
   ];
 
-  const titles = { home: "Dashboard Overview", dispatch: "Dispatch Manager", products: "Products Database", designer: "Product Designer", crm: "CRM & Sales", marketing: "Marketing Studio", documents: "Document Store" };
+  const titles = { home: "Dashboard Overview", dispatch: "Dispatch Manager", products: "Products Database", designer: "Picture Quotation", crm: "CRM & Sales", marketing: "Marketing Studio", documents: "Document Store" };
 
   return (
     <>
@@ -3073,7 +2854,7 @@ export default function App() {
             {active === "home" && <HomeModule setActive={setActive} />}
             {active === "dispatch" && <DispatchModule showNotif={showNotif} />}
             {active === "products" && <ProductsModule />}
-            {active === "designer" && <ProductDesignerModule />}
+            {active === "designer" && <PictureQuotationModule />}
             {active === "crm" && <CRMModule />}
             {active === "marketing" && <MarketingModule />}
             {active === "documents" && <DocumentsModule />}
