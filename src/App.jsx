@@ -1,4 +1,3 @@
-import "./index.css";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Printer, Save, Plus, Trash2, FileSpreadsheet, Package, ArrowLeft, Settings, X, FileDown, RefreshCw, Database, Users, Send, Scissors, Mail } from "lucide-react";
 
