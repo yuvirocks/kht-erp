@@ -2949,6 +2949,7 @@ function ExportsModule() {
   const [notifMsg, setNotifMsg]   = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({});
+  const [fetchingEmailId, setFetchingEmailId] = useState(null); // which row is being searched
   const apiKey = () => localStorage.getItem("kht_anthropic_key") || "";
   const showN = (m) => { setNotifMsg(m); setTimeout(() => setNotifMsg(null), 3200); };
 
@@ -2983,7 +2984,12 @@ function ExportsModule() {
     setLoadingData(true);
     try {
       // Try fetching the co-deployed file
-      const r = await fetch(`./importers.json?t=${Date.now()}`);
+      // Try multiple paths — works whether file is in root or /public
+      let r;
+      for (const path of ['/importers.json', './importers.json', '/public/importers.json']) {
+        try { r = await fetch(`${path}?t=${Date.now()}`); if (r.ok) break; } catch {}
+      }
+      if (!r || !r.ok) throw new Error("importers.json not found");
       const d = await r.json();
       const rows = d.importers || d;
       setAllImporters(rows);
@@ -3011,6 +3017,85 @@ function ExportsModule() {
       return next;
     });
     setAllImporters(prev => prev.map(x => x.id === id ? {...x, ...patch} : x));
+  };
+
+  /* -- Get Email: Claude + web_search finds company contact email -- */
+  const getEmail = async (imp) => {
+    const key = apiKey();
+    if (!key) { showN("Add Anthropic API key in Dispatch → Settings first."); return; }
+    setFetchingEmailId(imp.id);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 400,
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{
+            role: "user",
+            content: `Find the business contact/procurement email address for the company "${imp.company}" in ${imp.country}. They import home textiles (towels, bed linen, furnishings - HS 6302/6304) from India.
+
+Search their official website, LinkedIn company page, or trade directories.
+
+Reply with ONLY this JSON, nothing else:
+{"email":"found@email.com","contact":"Person Name if found","source":"where you found it"}
+
+If not found: {"email":"","contact":"","source":"not found"}`
+          }]
+        })
+      });
+      const d = await res.json();
+      const textBlock = d.content?.find(b => b.type === "text");
+      if (textBlock?.text) {
+        const raw = textBlock.text.trim();
+        const jsonMatch = raw.match(/\{[^}]*"email"[^}]*\}/s);
+        if (jsonMatch) {
+          try {
+            const p = JSON.parse(jsonMatch[0]);
+            if (p.email && p.email.includes("@")) {
+              saveOverride(imp.id, {
+                email:   p.email.trim().toLowerCase(),
+                contact: p.contact || imp.contact || "",
+                notes:   (imp.notes ? imp.notes + " | " : "") + `Email via AI search (${p.source})`
+              });
+              showN(`✅ ${imp.company}: ${p.email}`);
+              return;
+            }
+          } catch {}
+        }
+        // Fallback: regex extract any email
+        const em = raw.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+        if (em) {
+          saveOverride(imp.id, { email: em[0].toLowerCase() });
+          showN(`✅ ${imp.company}: ${em[0]}`);
+        } else {
+          showN(`No email found for ${imp.company}`);
+        }
+      }
+    } catch { showN("Search failed — check API key."); }
+    setFetchingEmailId(null);
+  };
+
+  /* -- Bulk get emails for all selected rows without emails (max 10 at once) -- */
+  const getBulkEmails = async () => {
+    const key = apiKey();
+    if (!key) { showN("Add Anthropic API key in Dispatch → Settings first."); return; }
+    const targets = importers.filter(x => selIds.includes(x.id) && !x.email);
+    if (!targets.length) { showN("All selected importers already have emails."); return; }
+    const batch = targets.slice(0, 10);
+    showN(`🔍 Searching ${batch.length} companies…`);
+    for (const imp of batch) {
+      await getEmail(imp);
+      await new Promise(r => setTimeout(r, 600));
+    }
+    if (targets.length > 10) showN(`✅ First 10 done · ${targets.length - 10} remaining — run again`);
+    else showN(`✅ Done searching ${batch.length} companies`);
   };
 
   /* -- Derived / filtered -- */
@@ -3186,7 +3271,35 @@ fontSize:13, fontWeight:500, zIndex:99999,
       {/* -- Settings -- */}
       {showSettings && (
         <div className="card" style={{ marginBottom:16, padding:16 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:"var(--label)", marginBottom:8 }}>⚙️ Exports Webhook</div>
+          <div style={{ fontSize:14, fontWeight:700, color:"var(--label)", marginBottom:14 }}>⚙️ Exports Settings</div>
+
+          {/* API Key status */}
+          {(() => {
+            const key = localStorage.getItem("kht_anthropic_key") || "";
+            const hasKey = key.startsWith("sk-ant-");
+            return (
+              <div style={{ marginBottom:14, padding:"12px 14px", borderRadius:10,
+                background: hasKey ? "var(--green-l)" : "var(--orange-l)",
+                border: `1px solid ${hasKey ? "rgba(52,199,89,.25)" : "rgba(255,149,0,.25)"}` }}>
+                <div style={{ fontSize:12, fontWeight:700, color: hasKey ? "#1A7A3A" : "#A05A00", marginBottom:4 }}>
+                  {hasKey ? "✅ Anthropic API Key — configured" : "⚠️ Anthropic API Key — not set"}
+                </div>
+                <div style={{ fontSize:11, color: hasKey ? "#2A8A4A" : "#B06010", lineHeight:1.7 }}>
+                  {hasKey
+                    ? `Key: sk-ant-...${key.slice(-6)} · Used for 📧 Find Email (web search) and AI email drafts`
+                    : <>The <strong>📧 Find Email</strong> button and AI email drafting require an Anthropic API key.<br/>
+                       Go to <strong>Dispatch Manager → ⚙️ Settings</strong> (top right of Dispatch module) and paste your key there.<br/>
+                       Get a key at: <strong style={{ userSelect:"all" }}>console.anthropic.com</strong></>
+                  }
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Webhook */}
+          <div style={{ fontSize:12, fontWeight:600, color:"var(--label2)", marginBottom:6 }}>
+            Google Sheet Webhook <span style={{ fontWeight:400, color:"var(--label3)" }}>(for Push to Sheet &amp; Send Email)</span>
+          </div>
           <div style={{ display:"flex", gap:8, marginBottom:10 }}>
             <input value={tempWh} onChange={e=>setTempWh(e.target.value)}
               placeholder="https://script.google.com/macros/s/…/exec"
@@ -3197,10 +3310,15 @@ fontSize:13, fontWeight:500, zIndex:99999,
               showN("✅ Saved"); setShowSettings(false);
             }}>Save</button>
           </div>
+          {webhookUrl && (
+            <div style={{ fontSize:11, color:"var(--label3)", marginBottom:10 }}>
+              ✅ Webhook set: {webhookUrl.slice(0,60)}…
+            </div>
+          )}
           <div style={{ fontSize:11, color:"var(--label3)", lineHeight:1.8, padding:"10px 12px", background:"var(--fill3)", borderRadius:8 }}>
-            <strong>Deploy steps:</strong> script.google.com → New project → paste ExportsAppsScript.gs →
-            Deploy → Web app → Execute as: Me → Access: Anyone → copy /exec URL above.<br/>
-            <strong>Data file:</strong> Deploy <code>importers.json</code> to the same folder as your Vercel app (drop it in the <code>public/</code> folder of your GitHub repo).
+            <strong>Webhook setup:</strong> script.google.com → New project → paste ExportsAppsScript.gs →
+            Deploy → Web app → Execute as: <strong>Me</strong> → Access: <strong>Anyone</strong> → copy /exec URL above.<br/>
+            <strong>importers.json:</strong> Drop in your GitHub repo root → Vercel serves it at /importers.json
           </div>
         </div>
       )}
@@ -3238,7 +3356,7 @@ fontSize:13, fontWeight:500, zIndex:99999,
 
           {/* Loading state */}
           {!dataLoaded && (
-            <div className="card" style={{ textAlign:"center", padding:"52px 24px" }}>
+            <div className="card" style={{ textAlign:"center", padding:"36px 24px" }}>
               {loadingData ? (
                 <>
                   <div className="dots" style={{ justifyContent:"center", marginBottom:14 }}><span/><span/><span/></div>
@@ -3288,13 +3406,19 @@ fontSize:13, fontWeight:500, zIndex:99999,
 
               {/* Results bar */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                <div style={{ fontSize:12, color:"var(--label3)" }}>
-/* Showing <strong style={{ color:"var(--label)" }}>{filtered.length.toLocaleString()}</strong> importers */
-                  {selIds.length > 0 && <> · <span style={{ color:"var(--blue)", fontWeight:600 }}>{selIds.length} selected</span></>}
-                </div>
+                  <div style={{ fontSize:12, color:"var(--label3)" }}>
+                    Showing <strong style={{ color:"var(--label)" }}>{filtered.length.toLocaleString()}</strong> importers
+                    {selIds.length > 0 && <> · <span style={{ color:"var(--blue)", fontWeight:600 }}>{selIds.length} selected</span></>}
+                  </div>
                 <div style={{ display:"flex", gap:8 }}>
                   {selIds.length > 0 && (
                     <>
+                      <button className="btn btn-sm" onClick={getBulkEmails}
+                        disabled={!!fetchingEmailId}
+                        style={{ fontSize:11, background:"var(--blue-l)", color:"var(--blue)", border:"none" }}
+                        title="AI searches web for emails of selected companies without emails">
+                        📧 Find Emails ({importers.filter(x=>selIds.includes(x.id)&&!x.email).length} missing)
+                      </button>
                       <button className="btn btn-out btn-sm" onClick={() => { setTab("compose"); }}
                         style={{ fontSize:11 }}>✉️ Email Selected</button>
                       {webhookUrl && (
@@ -3329,12 +3453,12 @@ fontSize:13, fontWeight:500, zIndex:99999,
                         <th>Company</th>
                         <th>Country</th>
                         <th>Products / HS</th>
-                        <th style={{ textAlign:"right" }}>Shipments</th>
-                        <th style={{ textAlign:"right" }}>FOB (USD)</th>
-                        <th>Main Port</th>
+                        <th style={{ textAlign:"right" }}>Ships</th>
+                        <th style={{ textAlign:"right" }}>FOB</th>
+                        <th>Port</th>
                         <th>Status</th>
                         <th>Email</th>
-                        <th></th>
+                        <th style={{ whiteSpace:"nowrap" }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3406,10 +3530,26 @@ fontSize:13, fontWeight:500, zIndex:99999,
                                     onClick={() => setEditingId(null)}>✕</button>
                                 </div>
                               ) : (
-                                <button className="btn btn-out btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
-                                  onClick={() => { setEditingId(imp.id); setEditDraft({email:imp.email||"",contact:imp.contact||"",notes:imp.notes||""}); }}>
-                                  ✏️
-                                </button>
+                                <div style={{ display:"flex", gap:4 }}>
+                                  <button className="btn btn-out btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
+                                    onClick={() => { setEditingId(imp.id); setEditDraft({email:imp.email||"",contact:imp.contact||"",notes:imp.notes||""}); }}
+                                    title="Edit email manually">
+                                    ✏️
+                                  </button>
+                                  <button
+                                    className="btn btn-sm"
+                                    style={{ fontSize:10, padding:"3px 8px", whiteSpace:"nowrap",
+                                      background: fetchingEmailId===imp.id ? "var(--blue-l)" : imp.email ? "var(--green-l)" : "var(--blue-l)",
+                                      color: fetchingEmailId===imp.id ? "var(--blue)" : imp.email ? "var(--green)" : "var(--blue)",
+                                      border:"none", minWidth:52 }}
+                                    disabled={!!fetchingEmailId}
+                                    onClick={() => getEmail(imp)}
+                                    title="AI searches web for this company's email">
+                                    {fetchingEmailId===imp.id
+                                      ? <span style={{display:"flex",alignItems:"center",gap:3}}><span className="spin" style={{display:"inline-block"}}>⟳</span>...</span>
+                                      : imp.email ? "🔄" : "📧 Find"}
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
