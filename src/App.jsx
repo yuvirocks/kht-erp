@@ -3076,6 +3076,663 @@ function PictureQuotationModule() {
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   EXPORTS MODULE  — Customs Database · 4,665 importers
+═══════════════════════════════════════════════════════════════ */
+function ExportsModule() {
+  const [tab, setTab]             = useState("database");
+  const [allImporters, setAllImporters] = useState([]);  // master list
+  const [overrides, setOverrides] = useState(() => {     // local edits: status/email/notes
+    try { return JSON.parse(localStorage.getItem("kht_exports_overrides") || "{}"); } catch { return {}; }
+  });
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState(() => localStorage.getItem("kht_exports_webhook") || "");
+  const [tempWh, setTempWh]       = useState(() => localStorage.getItem("kht_exports_webhook") || "");
+  const [showSettings, setShowSettings] = useState(false);
+  const [notifMsg, setNotifMsg]   = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState({});
+  const apiKey = () => localStorage.getItem("kht_anthropic_key") || "";
+  const showN = (m) => { setNotifMsg(m); setTimeout(() => setNotifMsg(null), 3200); };
+
+  /* ── Filters ── */
+  const [fSearch,  setFSearch]    = useState("");
+  const [fCountry, setFCountry]   = useState("All");
+  const [fStatus,  setFStatus]    = useState("All");
+  const [fHS,      setFHS]        = useState("All");
+  const [sortBy,   setSortBy]     = useState("shipments"); // shipments | fob | company
+  const [page,     setPage]       = useState(1);
+  const PAGE_SIZE = 50;
+
+  /* ── Compose ── */
+  const [selIds,       setSelIds]       = useState([]);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody,    setEmailBody]    = useState("");
+  const [aiLoading,    setAiLoading]    = useState(false);
+  const [sending,      setSending]      = useState(false);
+
+  /* ── Load importers.json (deployed alongside App.jsx) ── */
+  const loadData = async () => {
+    // Check cache first
+    try {
+      const cached = JSON.parse(sessionStorage.getItem("kht_customs_data") || "null");
+      if (cached && cached.importers?.length) {
+        setAllImporters(cached.importers);
+        setDataLoaded(true);
+        return;
+      }
+    } catch {}
+    setLoadingData(true);
+    try {
+      // Try fetching the co-deployed file
+      const r = await fetch(`./importers.json?t=${Date.now()}`);
+      const d = await r.json();
+      const rows = d.importers || d;
+      setAllImporters(rows);
+      setDataLoaded(true);
+      sessionStorage.setItem("kht_customs_data", JSON.stringify({ importers: rows }));
+      showN(`✅ Loaded ${rows.length.toLocaleString()} importers`);
+    } catch(e) {
+      console.error("Could not load importers.json:", e);
+      showN("Could not load importers.json — make sure it's deployed alongside App.jsx");
+    }
+    setLoadingData(false);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  /* Merge overrides into display rows */
+  const importers = allImporters.map(x => ({
+    ...x, ...(overrides[x.id] || {})
+  }));
+
+  /* Save override (status / email / notes) locally */
+  const saveOverride = (id, patch) => {
+    setOverrides(prev => {
+      const next = { ...prev, [id]: { ...(prev[id]||{}), ...patch }};
+      try { localStorage.setItem("kht_exports_overrides", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setAllImporters(prev => prev.map(x => x.id === id ? {...x, ...patch} : x));
+  };
+
+  /* ── Derived / filtered ── */
+  const countries = ["All", ...Array.from(new Set(allImporters.map(x => x.country).filter(Boolean))).sort()];
+  const hsCodes   = ["All", "6302 - Household Linen", "6304 - Other Furnishing Articles"];
+
+  const filtered = importers.filter(x => {
+    if (fCountry !== "All" && x.country !== fCountry) return false;
+    if (fStatus  !== "All" && (x.status || "New") !== fStatus) return false;
+    if (fHS !== "All") {
+      const prefix = fHS.slice(0,4);
+      if (!(x.hs||x.hs_codes||"").includes(prefix)) return false;
+    }
+    if (fSearch) {
+      const q = fSearch.toLowerCase();
+      if (![x.company, x.country, x.email, x.products, x.port, x.contact]
+        .join(" ").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b) => {
+    if (sortBy === "fob")      return (b.fob||0) - (a.fob||0);
+    if (sortBy === "company")  return (a.company||"").localeCompare(b.company||"");
+    return (b.ships||b.shipments||0) - (a.ships||a.shipments||0);
+  });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pageRows   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  /* Reset page when filters change */
+  useEffect(() => setPage(1), [fSearch, fCountry, fStatus, fHS, sortBy]);
+
+  /* Status stats */
+  const stats = {
+    total:       importers.length,
+    new:         importers.filter(x => !x.status || x.status === "New").length,
+    contacted:   importers.filter(x => ["Contacted","Interested","Negotiating","Sample Sent"].includes(x.status)).length,
+    interested:  importers.filter(x => ["Interested","Negotiating"].includes(x.status)).length,
+    converted:   importers.filter(x => x.status === "Converted").length,
+  };
+
+  /* ── Push to Google Sheet ── */
+  const pushToSheet = async (rows) => {
+    if (!webhookUrl) { showN("Set webhook URL in Settings first."); return; }
+    const payload = rows.map(x => ({
+      id: x.id, company: x.company, country: x.country,
+      contact: x.contact||"", email: x.email||"", phone: x.phone||"",
+      product: x.products||"", city: x.port||"",
+      volume: `${x.ships||0} shipments / $${(x.fob||0).toLocaleString()} FOB`,
+      status: x.status||"New",
+      notes: `HS: ${x.hs||x.hs_codes||""} | Source: ${x.source||"Customs Apr 2023"}`,
+      source: x.source||"Customs Apr 2023",
+    }));
+    try {
+      await fetch(webhookUrl, { method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"bulkImport", importers: payload })
+      });
+      showN(`✅ ${rows.length} records pushed to Google Sheet`);
+      logActivity({ icon:"✈️", title:`Pushed ${rows.length} importers to Sheets`, sub:`From Customs Apr 2023 database`, module:"exports" });
+    } catch { showN("Push failed — check webhook URL."); }
+  };
+
+  /* ── AI draft ── */
+  const draftEmail = async () => {
+    const key = apiKey();
+    if (!key) { showN("Add Anthropic API key in Dispatch → Settings."); return; }
+    if (!selIds.length) { showN("Select importers first."); return; }
+    const targets = importers.filter(x => selIds.includes(x.id));
+    const cList = [...new Set(targets.map(x => x.country).filter(Boolean))].join(", ");
+    const sample = targets[0];
+    setAiLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "x-api-key": key,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true" },
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514", max_tokens:700,
+          messages:[{ role:"user", content:
+`Write a professional B2B introduction email from Kshirsagar Hometextiles, Solapur, India.
+We manufacture & export premium terry towels, bath mats, bed linen, home textiles — "Two Elephants" brand — since 1947.
+HS codes: 6302 (household/bed linen) and 6304 (furnishing articles).
+Recipient importers are from: ${cList}.
+${sample ? `Example: ${sample.company} imports ${sample.products?.slice(0,60)||"textiles"} (${sample.ships||1} shipments recorded in Indian customs data).` : ""}
+Write: introduce company, highlight heritage & quality, mention HS 6302/6304 product range, invite them to request samples/catalogue.
+Under 200 words. Professional, warm, specific. 
+First line MUST be exactly: Subject: [the subject line]`
+          }]
+        })
+      });
+      const d = await res.json();
+      const text = d.content?.[0]?.text || "";
+      const lines = text.split("\n");
+      const subLine = lines.find(l => l.toLowerCase().startsWith("subject:"));
+      if (subLine) {
+        setEmailSubject(subLine.replace(/^subject:\s*/i,"").trim());
+        setEmailBody(lines.filter(l => !l.toLowerCase().startsWith("subject:")).join("\n").trim());
+      } else { setEmailBody(text.trim()); }
+    } catch { showN("AI draft failed."); }
+    setAiLoading(false);
+  };
+
+  /* ── Send emails ── */
+  const sendEmails = async () => {
+    const targets = importers.filter(x => selIds.includes(x.id) && x.email);
+    if (!targets.length) { showN("No selected importers have email addresses."); return; }
+    if (!emailSubject || !emailBody) { showN("Subject and body required."); return; }
+    if (!webhookUrl) { showN("Configure webhook in Settings."); return; }
+    setSending(true);
+    try {
+      await fetch(webhookUrl, { method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"sendEmails",
+          emails: targets.map(t => t.email), subject: emailSubject, body: emailBody }) });
+      const now = new Date().toLocaleDateString("en-IN");
+      targets.forEach(t => saveOverride(t.id, {
+        lastContacted: now,
+        status: (!t.status || t.status === "New") ? "Contacted" : t.status
+      }));
+      logActivity({ icon:"✈️", title:`Export email → ${targets.length} importer${targets.length>1?"s":""}`, sub: emailSubject, module:"exports" });
+      showN(`✅ Sent to ${targets.length} importers`);
+      setSelIds([]); setEmailSubject(""); setEmailBody("");
+    } catch { showN("Send failed."); }
+    setSending(false);
+  };
+
+  const sc = (status) => STATUS_COLOR[status||"New"] || STATUS_COLOR["New"];
+  const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$${(n/1000).toFixed(0)}K` : `$${n}`;
+
+  /* ═══ RENDER ═══ */
+  const tabList = [
+    { id:"database", label:"🌍 Database" },
+    { id:"compose",  label:"✉️ Compose & Send" },
+  ];
+
+  return (
+    <div>
+      {notifMsg && (
+        <div style={{ position:"fixed", top:16, right:16, background:"rgba(255,255,255,.96)",
+          backdropFilter:"blur(20px)", color:"var(--label)", padding:"11px 18px", borderRadius:14,
+          fontSize:13, fontWeight:500, zIndex:99999,
+          boxShadow:"0 8px 32px rgba(0,0,0,.12)", border:"0.5px solid rgba(0,0,0,.08)" }}>
+          {notifMsg}
+        </div>
+      )}
+
+      {/* ── Header ── */}
+      <div className="sh" style={{ marginBottom:16 }}>
+        <div>
+          <div className="st">✈️ Exports</div>
+          <div className="text-sm text-lt" style={{ marginTop:3 }}>
+            {dataLoaded
+              ? `${importers.length.toLocaleString()} importers · 134 countries · Customs Apr 2023`
+              : "Global importer database — Customs export data"}
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button className="btn btn-out btn-sm" onClick={() => setShowSettings(s=>!s)}>⚙️ Settings</button>
+          {!dataLoaded && (
+            <button className="btn btn-gold btn-sm" onClick={loadData} disabled={loadingData}>
+              {loadingData ? "Loading…" : "⬇ Load Data"}
+            </button>
+          )}
+          {dataLoaded && webhookUrl && (
+            <button className="btn btn-out btn-sm" onClick={() => pushToSheet(filtered)}>
+              ☁️ Push {filtered.length.toLocaleString()} to Sheet
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Settings ── */}
+      {showSettings && (
+        <div className="card" style={{ marginBottom:16, padding:16 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"var(--label)", marginBottom:8 }}>⚙️ Exports Webhook</div>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <input value={tempWh} onChange={e=>setTempWh(e.target.value)}
+              placeholder="https://script.google.com/macros/s/…/exec"
+              className="inp" style={{ flex:1, fontSize:12 }} />
+            <button className="btn btn-gold btn-sm" onClick={() => {
+              setWebhookUrl(tempWh);
+              localStorage.setItem("kht_exports_webhook", tempWh);
+              showN("✅ Saved"); setShowSettings(false);
+            }}>Save</button>
+          </div>
+          <div style={{ fontSize:11, color:"var(--label3)", lineHeight:1.8, padding:"10px 12px", background:"var(--fill3)", borderRadius:8 }}>
+            <strong>Deploy steps:</strong> script.google.com → New project → paste ExportsAppsScript.gs →
+            Deploy → Web app → Execute as: Me → Access: Anyone → copy /exec URL above.<br/>
+            <strong>Data file:</strong> Deploy <code>importers.json</code> to the same folder as your Vercel app (drop it in the <code>public/</code> folder of your GitHub repo).
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabs ── */}
+      <div style={{ display:"flex", gap:6, marginBottom:16, paddingBottom:12, borderBottom:"0.5px solid var(--sep)" }}>
+        {tabList.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`btn btn-sm ${tab===t.id ? "btn-gold":"btn-out"}`}>{t.label}</button>
+        ))}
+        {selIds.length > 0 && (
+          <span style={{ marginLeft:"auto", fontSize:12, color:"var(--blue)", fontWeight:600, alignSelf:"center" }}>
+            {selIds.length} selected
+          </span>
+        )}
+      </div>
+
+      {/* ═══ DATABASE TAB ═══ */}
+      {tab === "database" && (
+        <div>
+          {/* Stats */}
+          <div className="g4 mb4">
+            {[
+              { label:"Total Importers",     value: stats.total.toLocaleString(),     c:"blue"  },
+              { label:"Approached",          value: stats.contacted.toLocaleString(), c:"gold"  },
+              { label:"Interested",          value: stats.interested.toLocaleString(),c:"green" },
+              { label:"Converted",           value: stats.converted.toLocaleString(), c:"green" },
+            ].map(s => (
+              <div key={s.label} className={`stat ${s.c}`} style={{ cursor:"default" }}>
+                <div className="stat-n">{s.value}</div>
+                <div className="stat-l">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Loading state */}
+          {!dataLoaded && (
+            <div className="card" style={{ textAlign:"center", padding:"52px 24px" }}>
+              {loadingData ? (
+                <>
+                  <div className="dots" style={{ justifyContent:"center", marginBottom:14 }}><span/><span/><span/></div>
+                  <div style={{ fontSize:14, color:"var(--label2)" }}>Loading 4,665 importers…</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize:48, marginBottom:16 }}>✈️</div>
+                  <div style={{ fontSize:17, fontWeight:700, color:"var(--label)", marginBottom:8 }}>
+                    Customs Export Database — Apr 2023
+                  </div>
+                  <div style={{ fontSize:13, color:"var(--label2)", marginBottom:6, lineHeight:1.7 }}>
+                    4,665 importers · 134 countries · HS 6302 &amp; 6304<br/>
+                    Deploy <strong>importers.json</strong> to your <code>public/</code> folder on Vercel, then click Load.
+                  </div>
+                  <button className="btn btn-gold" onClick={loadData} style={{ marginTop:8 }}>⬇ Load Database</button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Filters */}
+          {dataLoaded && (
+            <>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 180px 160px 160px 140px", gap:10, marginBottom:14 }}>
+                <input value={fSearch} onChange={e=>setFSearch(e.target.value)}
+                  placeholder="Search company, country, product, port…" className="inp" />
+                <select value={fCountry} onChange={e=>setFCountry(e.target.value)} className="sel" style={{ fontSize:12 }}>
+                  {countries.map(c => <option key={c}>{c}</option>)}
+                </select>
+                <select value={fStatus} onChange={e=>setFStatus(e.target.value)} className="sel" style={{ fontSize:12 }}>
+                  <option value="All">All Statuses</option>
+                  {EXPORTER_STATUS.map(s => <option key={s}>{s}</option>)}
+                </select>
+                <select value={fHS} onChange={e=>setFHS(e.target.value)} className="sel" style={{ fontSize:12 }}>
+                  {hsCodes.map(h => <option key={h}>{h}</option>)}
+                </select>
+                <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="sel" style={{ fontSize:12 }}>
+                  <option value="shipments">Sort: Shipments</option>
+                  <option value="fob">Sort: FOB Value</option>
+                  <option value="company">Sort: A–Z</option>
+                </select>
+              </div>
+
+              {/* Results bar */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                <div style={{ fontSize:12, color:"var(--label3)" }}>
+                  Showing <strong style={{ color:"var(--label)" }}>{filtered.length.toLocaleString()}</strong> importers
+                  {selIds.length > 0 && <> · <span style={{ color:"var(--blue)", fontWeight:600 }}>{selIds.length} selected</span></>}
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  {selIds.length > 0 && (
+                    <>
+                      <button className="btn btn-out btn-sm" onClick={() => { setTab("compose"); }}
+                        style={{ fontSize:11 }}>✉️ Email Selected</button>
+                      {webhookUrl && (
+                        <button className="btn btn-out btn-sm"
+                          onClick={() => pushToSheet(importers.filter(x => selIds.includes(x.id)))}
+                          style={{ fontSize:11 }}>☁️ Push to Sheet</button>
+                      )}
+                      <button className="btn btn-out btn-sm" onClick={() => setSelIds([])}
+                        style={{ fontSize:11 }}>✕ Clear</button>
+                    </>
+                  )}
+                  <button className="btn btn-out btn-sm"
+                    onClick={() => setSelIds(filtered.map(x => x.id))}
+                    style={{ fontSize:11 }}>Select All {filtered.length > 500 ? "(filtered)" : ""}</button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="card" style={{ padding:0, overflow:"hidden" }}>
+                <div style={{ overflowX:"auto" }}>
+                  <table className="tbl">
+                    <thead>
+                      <tr>
+                        <th style={{ width:36 }}>
+                          <input type="checkbox"
+                            checked={selIds.length > 0 && pageRows.every(x => selIds.includes(x.id))}
+                            onChange={e => {
+                              if (e.target.checked) setSelIds(prev => [...new Set([...prev, ...pageRows.map(x=>x.id)])]);
+                              else setSelIds(prev => prev.filter(id => !pageRows.find(x=>x.id===id)));
+                            }} />
+                        </th>
+                        <th>Company</th>
+                        <th>Country</th>
+                        <th>Products / HS</th>
+                        <th style={{ textAlign:"right" }}>Shipments</th>
+                        <th style={{ textAlign:"right" }}>FOB (USD)</th>
+                        <th>Main Port</th>
+                        <th>Status</th>
+                        <th>Email</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((imp, i) => {
+                        const col = sc(imp.status);
+                        const isEditing = editingId === imp.id;
+                        return (
+                          <tr key={imp.id}>
+                            <td>
+                              <input type="checkbox"
+                                checked={selIds.includes(imp.id)}
+                                onChange={e => setSelIds(prev =>
+                                  e.target.checked ? [...prev, imp.id] : prev.filter(id=>id!==imp.id))} />
+                            </td>
+                            <td style={{ maxWidth:200 }}>
+                              <div style={{ fontWeight:700, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                {imp.company}
+                              </div>
+                              {imp.contact && <div style={{ fontSize:11, color:"var(--label3)" }}>{imp.contact}</div>}
+                            </td>
+                            <td style={{ fontSize:12, whiteSpace:"nowrap" }}>{imp.country}</td>
+                            <td style={{ maxWidth:160 }}>
+                              <div style={{ fontSize:11, color:"var(--label2)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                {imp.products || imp.hs || "—"}
+                              </div>
+                              <div style={{ fontSize:10, color:"var(--label4)" }}>{imp.hs||imp.hs_codes}</div>
+                            </td>
+                            <td style={{ textAlign:"right", fontWeight:700, fontSize:13 }}>
+                              {(imp.ships||imp.shipments||0).toLocaleString()}
+                            </td>
+                            <td style={{ textAlign:"right", fontSize:12, fontWeight:600, color:"var(--green)" }}>
+                              {fmt(imp.fob||0)}
+                            </td>
+                            <td style={{ fontSize:11, color:"var(--label3)", whiteSpace:"nowrap" }}>
+                              {imp.port||imp.main_port||"—"}
+                            </td>
+                            <td>
+                              <select value={imp.status||"New"} onChange={e => saveOverride(imp.id, { status: e.target.value })}
+                                style={{ fontSize:11, fontWeight:600, padding:"3px 7px", borderRadius:6, border:"none",
+                                  background:col.bg, color:col.text, cursor:"pointer", outline:"none", fontFamily:"inherit" }}>
+                                {EXPORTER_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td style={{ fontSize:11 }}>
+                              {isEditing ? (
+                                <input value={editDraft.email||""} onChange={e=>setEditDraft(d=>({...d,email:e.target.value}))}
+                                  autoFocus placeholder="email@domain.com"
+                                  style={{ border:"1px solid var(--blue)", borderRadius:5, padding:"3px 7px",
+                                    fontSize:11, outline:"none", width:160, fontFamily:"inherit" }}
+                                  onKeyDown={e=>{
+                                    if(e.key==="Enter"){ saveOverride(imp.id,{email:editDraft.email,contact:editDraft.contact,notes:editDraft.notes}); setEditingId(null); }
+                                    if(e.key==="Escape") setEditingId(null);
+                                  }} />
+                              ) : (
+                                <span style={{ color: imp.email ? "var(--blue)" : "var(--label4)", cursor:"pointer" }}
+                                  onClick={() => { setEditingId(imp.id); setEditDraft({email:imp.email||"",contact:imp.contact||"",notes:imp.notes||""}); }}>
+                                  {imp.email || "+ add"}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <div style={{ display:"flex", gap:4 }}>
+                                  <button className="btn btn-gold btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
+                                    onClick={() => { saveOverride(imp.id,{email:editDraft.email,contact:editDraft.contact,notes:editDraft.notes}); setEditingId(null); }}>
+                                    Save
+                                  </button>
+                                  <button className="btn btn-out btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
+                                    onClick={() => setEditingId(null)}>✕</button>
+                                </div>
+                              ) : (
+                                <button className="btn btn-out btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
+                                  onClick={() => { setEditingId(imp.id); setEditDraft({email:imp.email||"",contact:imp.contact||"",notes:imp.notes||""}); }}>
+                                  ✏️
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div style={{ padding:"10px 16px", borderTop:"0.5px solid var(--sep)",
+                    display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ fontSize:11, color:"var(--label3)" }}>
+                      Page {page} of {totalPages} · {filtered.length.toLocaleString()} results
+                    </div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <button className="btn btn-out btn-sm" disabled={page===1} onClick={() => setPage(1)} style={{ fontSize:11 }}>«</button>
+                      <button className="btn btn-out btn-sm" disabled={page===1} onClick={() => setPage(p=>p-1)} style={{ fontSize:11 }}>‹ Prev</button>
+                      {[...Array(Math.min(5,totalPages))].map((_,i) => {
+                        const p = Math.max(1, Math.min(totalPages-4, page-2)) + i;
+                        return (
+                          <button key={p} className={`btn btn-sm ${p===page?"btn-gold":"btn-out"}`}
+                            onClick={() => setPage(p)} style={{ fontSize:11, minWidth:32 }}>{p}</button>
+                        );
+                      })}
+                      <button className="btn btn-out btn-sm" disabled={page===totalPages} onClick={() => setPage(p=>p+1)} style={{ fontSize:11 }}>Next ›</button>
+                      <button className="btn btn-out btn-sm" disabled={page===totalPages} onClick={() => setPage(totalPages)} style={{ fontSize:11 }}>»</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Edit drawer (contact/notes) when editing */}
+              {editingId && (
+                <div className="card" style={{ marginTop:12, padding:16 }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:12, color:"var(--label)" }}>
+                    Edit — {importers.find(x=>x.id===editingId)?.company}
+                  </div>
+                  <div className="form-row-3">
+                    <div>
+                      <label className="lbl">Email</label>
+                      <input value={editDraft.email||""} onChange={e=>setEditDraft(d=>({...d,email:e.target.value}))}
+                        className="inp" placeholder="email@company.com" />
+                    </div>
+                    <div>
+                      <label className="lbl">Contact Person</label>
+                      <input value={editDraft.contact||""} onChange={e=>setEditDraft(d=>({...d,contact:e.target.value}))}
+                        className="inp" placeholder="Buyer / Procurement name" />
+                    </div>
+                    <div>
+                      <label className="lbl">Notes</label>
+                      <input value={editDraft.notes||""} onChange={e=>setEditDraft(d=>({...d,notes:e.target.value}))}
+                        className="inp" placeholder="Any notes…" />
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:10 }}>
+                    <button className="btn btn-out btn-sm" onClick={() => setEditingId(null)}>Cancel</button>
+                    <button className="btn btn-gold btn-sm" onClick={() => {
+                      saveOverride(editingId, editDraft); setEditingId(null);
+                      showN("✅ Saved");
+                    }}>Save Changes</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ═══ COMPOSE TAB ═══ */}
+      {tab === "compose" && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 360px", gap:16 }}>
+          {/* Composer */}
+          <div className="card">
+            <div style={{ fontSize:14, fontWeight:700, color:"var(--label)", marginBottom:14 }}>✉️ Compose Export Email</div>
+
+            <div style={{ marginBottom:12 }}>
+              <label className="lbl">To ({selIds.length} selected)</label>
+              {selIds.length === 0 ? (
+                <div style={{ padding:"10px 14px", background:"var(--fill3)", borderRadius:8, fontSize:12, color:"var(--label3)" }}>
+                  Select importers from the panel → or go to Database, check rows, then return here.
+                </div>
+              ) : (
+                <div style={{ padding:"8px 12px", background:"var(--fill3)", borderRadius:8,
+                  display:"flex", flexWrap:"wrap", gap:5, maxHeight:100, overflowY:"auto" }}>
+                  {importers.filter(x => selIds.includes(x.id)).slice(0,20).map(x => (
+                    <span key={x.id} style={{ display:"inline-flex", alignItems:"center", gap:4,
+                      padding:"2px 9px", background:"var(--blue-l)", color:"var(--blue)",
+                      borderRadius:20, fontSize:11, fontWeight:600 }}>
+                      {x.company.slice(0,30)}{x.company.length>30?"…":""} · {x.country}
+                      {!x.email && <span title="No email" style={{ color:"var(--orange)" }}>⚠</span>}
+                      <span style={{ cursor:"pointer", opacity:.6 }} onClick={() => setSelIds(prev=>prev.filter(id=>id!==x.id))}>✕</span>
+                    </span>
+                  ))}
+                  {selIds.length > 20 && <span style={{ fontSize:11, color:"var(--label3)", alignSelf:"center" }}>+{selIds.length-20} more</span>}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom:10 }}>
+              <label className="lbl">Subject</label>
+              <input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)}
+                placeholder="e.g. Premium Terry Towels from India — Kshirsagar Hometextiles"
+                className="inp" />
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label className="lbl">Body</label>
+              <textarea value={emailBody} onChange={e=>setEmailBody(e.target.value)}
+                placeholder="Write your email, or click ✨ AI Draft to auto-generate one…"
+                className="ta" style={{ minHeight:240, fontSize:13, lineHeight:1.8 }} />
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="btn btn-out" onClick={draftEmail}
+                disabled={aiLoading||!selIds.length} style={{ flex:1 }}>
+                {aiLoading ? <><div className="dots"><span/><span/><span/></div>&nbsp;Drafting…</> : "✨ AI Draft"}
+              </button>
+              <button className="btn btn-gold" onClick={sendEmails}
+                disabled={sending||!selIds.length||!emailSubject||!emailBody} style={{ flex:1 }}>
+                {sending ? "Sending…" : `📤 Send to ${importers.filter(x=>selIds.includes(x.id)&&x.email).length} Importers`}
+              </button>
+            </div>
+            {!webhookUrl && (
+              <div style={{ marginTop:10, padding:"8px 12px", background:"var(--orange-l)", borderRadius:8, fontSize:11, color:"#A05A00" }}>
+                ⚠️ Webhook not configured — emails won't send. Add it in Settings.
+              </div>
+            )}
+          </div>
+
+          {/* Recipient picker */}
+          <div className="card" style={{ padding:0, overflow:"hidden", display:"flex", flexDirection:"column", maxHeight:580 }}>
+            <div style={{ padding:"12px 14px", borderBottom:"0.5px solid var(--sep)" }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"var(--label)", marginBottom:8 }}>Quick Select</div>
+              <input placeholder="Filter by name or country…" className="inp" style={{ fontSize:12 }}
+                onChange={e => setFSearch(e.target.value)} />
+            </div>
+            <div style={{ flex:1, overflowY:"auto" }}>
+              {filtered.slice(0, 200).map((imp, i) => {
+                const sel = selIds.includes(imp.id);
+                return (
+                  <div key={imp.id||i}
+                    onClick={() => setSelIds(prev => sel ? prev.filter(id=>id!==imp.id) : [...prev, imp.id])}
+                    style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 14px",
+                      cursor:"pointer", borderBottom:"0.5px solid var(--sep)",
+                      background: sel ? "var(--blue-l)" : "transparent", transition:"background .1s" }}>
+                    <div style={{ width:17, height:17, borderRadius:4, flexShrink:0,
+                      border:`2px solid ${sel?"var(--blue)":"rgba(0,0,0,.16)"}`,
+                      background: sel ? "var(--blue)" : "transparent",
+                      display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      {sel && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {imp.company}
+                      </div>
+                      <div style={{ fontSize:10, color:"var(--label3)" }}>
+                        {imp.country} · {imp.email || "no email"} · {(imp.ships||imp.shipments||0)} ships
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {filtered.length > 200 && (
+                <div style={{ padding:"10px 14px", fontSize:11, color:"var(--label3)", textAlign:"center" }}>
+                  +{filtered.length-200} more — use filters to narrow down
+                </div>
+              )}
+            </div>
+            <div style={{ padding:"8px 14px", borderTop:"0.5px solid var(--sep)", fontSize:11,
+              color:"var(--label3)", display:"flex", justifyContent:"space-between" }}>
+              <span>{selIds.length} selected</span>
+              <span>{importers.filter(x=>selIds.includes(x.id)&&x.email).length} with email</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function App() {
   const [active, setActive] = useState("home");
   const [notif, setNotif] = useState(null);
