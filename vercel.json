@@ -1,0 +1,7 @@
+kht-erp/              ← repo root
+  vercel.json         ← drop it here
+  package.json
+  vite.config.js
+  index.html
+  src/
+    App.jsx
