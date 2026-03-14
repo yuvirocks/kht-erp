@@ -119,56 +119,56 @@ body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   background: #E8EDF5;
   height: 100vh; overflow: hidden;
-/* -webkit-font-smoothing: antialiased; */
-/* -moz-osx-font-smoothing: grayscale; */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :root {
-/* --glass:        rgba(255,255,255,.72); */
-/* --glass-hover:  rgba(255,255,255,.86); */
-/* --glass-strong: rgba(255,255,255,.90); */
-/* --glass-border: rgba(0,0,0,.06); */
-/* --glass-sep:    rgba(0,0,0,.07); */
-/* --label:   rgba(0,0,0,.90); */
-/* --label2:  rgba(0,0,0,.55); */
-/* --label3:  rgba(0,0,0,.36); */
-/* --label4:  rgba(0,0,0,.18); */
-/* --blue:       #007AFF; */
-/* --blue-l:     rgba(0,122,255,.12); */
-/* --green:      #34C759; */
-/* --green-l:    rgba(52,199,89,.13); */
-/* --red:        #FF3B30; */
-/* --red-l:      rgba(255,59,48,.11); */
-/* --orange:     #FF9500; */
-/* --orange-l:   rgba(255,149,0,.13); */
-/* --purple:     #AF52DE; */
-/* --teal:       #5AC8FA; */
-/* --bg:         transparent; */
-/* --bg2:        rgba(255,255,255,.80); */
-/* --bg3:        rgba(255,255,255,.50); */
-/* --cream:      rgba(255,255,255,.60); */
-/* --white:      #ffffff; */
-/* --border:     rgba(0,0,0,.08); */
-/* --border-l:   rgba(0,0,0,.05); */
-/* --sep:        rgba(0,0,0,.07); */
-/* --sep-opaque: rgba(0,0,0,.12); */
-/* --text-dark:  rgba(0,0,0,.90); */
-/* --text-mid:   rgba(0,0,0,.55); */
-/* --text-light: rgba(0,0,0,.36); */
-/* --fill:       rgba(0,0,0,.05); */
-/* --fill2:      rgba(0,0,0,.04); */
-/* --fill3:      rgba(0,0,0,.03); */
-/* --gold:       #FF9500; */
-/* --gold-l:     #FFCC00; */
-/* --gold-p:     rgba(255,149,0,.12); */
-/* --gold-pp:    rgba(255,149,0,.06); */
-/* --navy:       #1C1C1E; */
-/* --radius:    14px; */
-/* --radius-sm: 10px; */
-/* --radius-xs: 7px; */
-/* --shadow-sm:  0 1px 6px rgba(0,0,0,.07), 0 0 0 0.5px rgba(0,0,0,.05); */
-/* --shadow-md:  0 4px 20px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06); */
-/* --shadow-lg:  0 12px 48px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08); */
+  --glass:        rgba(255,255,255,.72);
+  --glass-hover:  rgba(255,255,255,.86);
+  --glass-strong: rgba(255,255,255,.90);
+  --glass-border: rgba(0,0,0,.06);
+  --glass-sep:    rgba(0,0,0,.07);
+  --label:   rgba(0,0,0,.90);
+  --label2:  rgba(0,0,0,.55);
+  --label3:  rgba(0,0,0,.36);
+  --label4:  rgba(0,0,0,.18);
+  --blue:       #007AFF;
+  --blue-l:     rgba(0,122,255,.12);
+  --green:      #34C759;
+  --green-l:    rgba(52,199,89,.13);
+  --red:        #FF3B30;
+  --red-l:      rgba(255,59,48,.11);
+  --orange:     #FF9500;
+  --orange-l:   rgba(255,149,0,.13);
+  --purple:     #AF52DE;
+  --teal:       #5AC8FA;
+  --bg:         transparent;
+  --bg2:        rgba(255,255,255,.80);
+  --bg3:        rgba(255,255,255,.50);
+  --cream:      rgba(255,255,255,.60);
+  --white:      #ffffff;
+  --border:     rgba(0,0,0,.08);
+  --border-l:   rgba(0,0,0,.05);
+  --sep:        rgba(0,0,0,.07);
+  --sep-opaque: rgba(0,0,0,.12);
+  --text-dark:  rgba(0,0,0,.90);
+  --text-mid:   rgba(0,0,0,.55);
+  --text-light: rgba(0,0,0,.36);
+  --fill:       rgba(0,0,0,.05);
+  --fill2:      rgba(0,0,0,.04);
+  --fill3:      rgba(0,0,0,.03);
+  --gold:       #FF9500;
+  --gold-l:     #FFCC00;
+  --gold-p:     rgba(255,149,0,.12);
+  --gold-pp:    rgba(255,149,0,.06);
+  --navy:       #1C1C1E;
+  --radius:    14px;
+  --radius-sm: 10px;
+  --radius-xs: 7px;
+  --shadow-sm:  0 1px 6px rgba(0,0,0,.07), 0 0 0 0.5px rgba(0,0,0,.05);
+  --shadow-md:  0 4px 20px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
+  --shadow-lg:  0 12px 48px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -189,7 +189,7 @@ body, #root {
   width: 222px; min-width: 222px; flex-shrink: 0;
   background: rgba(248,249,252,.88);
   backdrop-filter: blur(40px) saturate(180%);
-/* -webkit-backdrop-filter: blur(40px) saturate(180%); */
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-right: 0.5px solid rgba(0,0,0,.09);
   display: flex; flex-direction: column;
   position: relative; z-index: 2;
@@ -217,7 +217,7 @@ body, #root {
 .topbar {
   background: rgba(255,255,255,.80);
   backdrop-filter: blur(40px) saturate(180%);
-/* -webkit-backdrop-filter: blur(40px) saturate(180%); */
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-bottom: 0.5px solid rgba(0,0,0,.09);
   height: 52px; padding: 0 22px;
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
@@ -231,7 +231,7 @@ body, #root {
 .card {
   background: var(--glass);
   backdrop-filter: blur(24px) saturate(160%);
-/* -webkit-backdrop-filter: blur(24px) saturate(160%); */
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-radius: var(--radius);
   border: 0.5px solid rgba(255,255,255,.9);
   box-shadow: var(--shadow-sm);
@@ -245,7 +245,7 @@ body, #root {
 .stat {
   background: var(--glass);
   backdrop-filter: blur(24px) saturate(160%);
-/* -webkit-backdrop-filter: blur(24px) saturate(160%); */
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-radius: var(--radius);
   border: 0.5px solid rgba(255,255,255,.9);
   box-shadow: var(--shadow-sm);
@@ -487,14 +487,14 @@ border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
             <div style={{ textAlign:"center" }}>
               <div style={{ width:80, borderBottom:"1px solid #888", marginBottom:3 }} />
               <div style={{ fontSize:6.5, textTransform:"uppercase", letterSpacing:"0.1em", color:"#888", fontWeight:700 }}>
-/* Receiver's Signature */
+              Receiver's Signature
               </div>
             </div>
             <div style={{ textAlign:"center" }}>
               <div style={{ fontSize:7, fontWeight:700, color:"#666", marginBottom:12 }}>For {sender.name}</div>
               <div style={{ width:80, borderBottom:"1px solid #888", marginBottom:3 }} />
               <div style={{ fontSize:6.5, textTransform:"uppercase", letterSpacing:"0.1em", color:"#888", fontWeight:700 }}>
-/* Authorised Signatory */
+              Authorised Signatory
               </div>
             </div>
           </div>
@@ -513,7 +513,7 @@ border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
           <div style={{ border:"1.5px solid #ccc", borderRadius:5, overflow:"hidden", marginBottom:10 }}>
             <div style={{ background:"#f5f5f5", padding:"4px 10px", borderBottom:"1px solid #ddd" }}>
               <div style={{ fontSize:7.5, fontWeight:900, color:"#333", letterSpacing:"0.12em", textTransform:"uppercase" }}>
-/* Dispatch Details */
+              Dispatch Details
               </div>
             </div>
             {[
@@ -1207,11 +1207,11 @@ function HomeModule({ setActive }) {
             {greeting} 👋
           </div>
           <div style={{ fontSize: 13, color: "var(--label3)", marginTop: 3 }}>
-/* Kshirsagar Hometextiles · Here's what's happening */
+            Kshirsagar Hometextiles · Here's what's happening
           </div>
         </div>
         <button className="btn btn-gold btn-sm" onClick={() => setActive("dispatch")}>
-//+ New Dispatch
+          + New Dispatch
         </button>
       </div>
 
@@ -1248,7 +1248,7 @@ animation: "livepulse 2s infinite"
           <div style={{ maxHeight: 420, overflowY: "auto" }}>
             {activity.length === 0 ? (
               <div style={{ padding: "32px 18px", textAlign: "center", color: "var(--label3)", fontSize: 13 }}>
-//No activity yet. Start dispatching, uploading products, or printing quotations — everything will appear here.
+              No activity yet. Start dispatching, uploading products, or printing quotations — everything will appear here.
               </div>
             ) : activity.map((ev, i) => {
               const meta = modMeta[ev.module] || { label: ev.module, color: "var(--label3)" };
@@ -1334,7 +1334,7 @@ transition: "all .15s",
           {/* Today's summary pill */}
           <div className="card" style={{ padding: "14px 16px" }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--label3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>
-/* Today's Summary */
+              Today's Summary
             </div>
             {[
               { label: "Events logged", value: activity.filter(e => Date.now() - (e.time||e.ts) < 86400000).length, color: "var(--blue)" },
@@ -1563,7 +1563,7 @@ method: "POST",
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
           <div style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Connect Google Drive</div>
           <div className="text-sm text-lt" style={{ maxWidth: 420, margin: "0 auto 20px" }}>
-//Deploy the Products Drive Apps Script, paste the URL here. Drive folders become product categories automatically.
+              Connect your Google Drive to display product photos here.
           </div>
           <button className="btn btn-gold" onClick={() => setShowSetup(true)}>Connect Now →</button>
         </div>
@@ -1672,13 +1672,13 @@ background: "transparent", transition: "all .15s",
                               setShareToast(`${multiSel.length} links copied!`);
                               setTimeout(() => setShareToast(null), 2500);
                             }}>
-//📋 Copy All Links
+              📋 Copy All Links
                           </button>
                         </>
                       )}
                       <button className="btn btn-out btn-sm" style={{ color: "rgba(255,255,255,.6)", borderColor: "rgba(255,255,255,.2)" }}
                         onClick={() => { setMultiMode(false); setMultiSel([]); }}>
-//✕ Cancel
+              ✕ Cancel
                       </button>
                     </div>
                   )}
@@ -1804,7 +1804,6 @@ display: "flex", alignItems: "center", justifyContent: "center",
               value={newCatName}
               onChange={e => setNewCatName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && createCategory()}
-//autoFocus
             />
             <div className="flex gap3">
               <button className="btn btn-gold btn-full" onClick={createCategory} disabled={!newCatName.trim() || creatingCat}>
@@ -2120,7 +2119,7 @@ background:
         .lb{
           background:rgba(255,255,255,.82);
           backdrop-filter:blur(48px) saturate(180%);
-/* -webkit-backdrop-filter:blur(48px) saturate(180%); */
+          -webkit-backdrop-filter:blur(48px) saturate(180%);
           border:0.5px solid rgba(0,0,0,.08);
           border-radius:24px;padding:44px 40px;
           width:100%;max-width:380px;
@@ -2171,7 +2170,6 @@ background:
               value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSubmit()}
-//autoFocus
             />
             {error && <div className="lerr">Incorrect password. Try again.</div>}
           </div>
@@ -2183,14 +2181,7 @@ background:
   );
 }
 
-/* PICTURE QUOTATION MODULE */
-/* Select images → build itemised quotation with product photos */
 
-/* PICTURE QUOTATION MODULE */
-/* - Each product = one row: image (left) + name/size/weight/price (right) */
-/* - Client: type freely OR pick from dispatch contacts */
-/* - Print: pure static HTML table with embedded base64 images */
-/* Tables + @page margins = 100% reliable A4, never cuts */
 
 /* -- Data shape for one product row -- */
 const EMPTY_ROW = () => ({
@@ -2210,9 +2201,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
   const [selCat, setSelCat] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
-  /* single-select */
   const [sel, setSel]       = useState(null);
-  /* multi-select — set of img objects */
   const [multiSel, setMultiSel] = useState([]);
   const [err, setErr]       = useState(null);
 
@@ -2237,7 +2226,6 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
     );
   };
 
-  /* Fetch base64 for a single img */
   const fetchBase64 = async (img) => {
     try {
       const r = await fetch(`${driveUrl}?action=getBase64&id=${img.id}&t=${Date.now()}`);
@@ -2247,7 +2235,6 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
     return { dataUrl: img.thumb || img.url, imgName: img.name };
   };
 
-  /* Single confirm */
   const confirmSingle = async () => {
     if (!sel) return;
     setFetching(true);
@@ -2256,7 +2243,6 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
     setFetching(false);
   };
 
-  /* Bulk confirm — fetch all selected in parallel */
   const confirmMulti = async () => {
     if (!multiSel.length) return;
     setFetching(true);
@@ -2348,7 +2334,6 @@ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
             <button onClick={onClose}
               style={{ padding:"8px 20px", borderRadius:8, border:"1px solid rgba(0,0,0,.12)",
                 background:"transparent", cursor:"pointer", fontWeight:600, fontSize:13, color:"var(--label2)" }}>
-/* Cancel */
             </button>
             {multiMode ? (
               <button onClick={confirmMulti} disabled={!multiSel.length || fetching}
@@ -2434,7 +2419,7 @@ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"cen
         <button onClick={() => setShowDrive(true)}
           style={{ fontSize:10, padding:"3px 10px", border:"1.5px solid #C4913A", borderRadius:6,
             background:"#fff", color:"#C4913A", cursor:"pointer", fontWeight:700, width:"100%" }}>
-//📁 Drive
+          📁 Drive
         </button>
         <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }}
           onChange={e => e.target.files[0] && loadFile(e.target.files[0])} />
@@ -2499,7 +2484,6 @@ showGst:  true,
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3200); };
 
-  /* Bulk add: each picked image becomes a new row */
   const handleBulkPick = (pickedImgs) => {
     const newRows = pickedImgs.map(img => ({
       ...EMPTY_ROW(),
@@ -2516,7 +2500,6 @@ dataUrl: img.dataUrl,
     showToast(`✅ Added ${newRows.length} product${newRows.length > 1 ? "s" : ""} from Drive`);
   };
 
-  /* Load contacts from dispatch webhook */
   useEffect(() => {
     const webhookUrl = localStorage.getItem("kht_webhook") || DEFAULT_WEBHOOK_URL;
     fetch(`${webhookUrl}?t=${Date.now()}`)
@@ -2535,7 +2518,6 @@ dataUrl: img.dataUrl,
       .catch(() => {});
   }, []);
 
-  /* Row operations */
   const updateRow = (idx, patch) => setRows(prev => prev.map((r, i) => i===idx ? {...r, ...patch} : r));
   const removeRow = idx => {
     if (rows.length === 1) { showToast("Need at least one row."); return; }
@@ -2550,7 +2532,6 @@ dataUrl: img.dataUrl,
   };
   const addRow = () => setRows(prev => [...prev, EMPTY_ROW()]);
 
-  /* GST calc */
   const priceTotal = rows.reduce((s, r) => s + (parseFloat(r.price)||0), 0);
   const gstAmt     = meta.showGst ? Math.round(priceTotal * meta.gstRate / 100) : 0;
   const grandTotal = priceTotal + gstAmt;
@@ -2574,7 +2555,6 @@ Strategy: pure static HTML table, images as embedded base64.
       catch { return d; }
     };
 
-    /* Each row as a <tr> — page-break-inside:avoid keeps image + details together */
     const rowsHtml = rows.map((r, i) => {
       const imgHtml = r.dataUrl
         ? `<img src="${r.dataUrl}"
@@ -2644,13 +2624,11 @@ Strategy: pure static HTML table, images as embedded base64.
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
-    /* A4 with sensible margins — content never overflows a page boundary */
     @page { size:A4 portrait; margin:10mm 12mm 12mm 12mm; }
     body {
       font-family:'Plus Jakarta Sans',Arial,sans-serif;
       font-size:13px;
       color:#0D1B2A;
-/* -webkit-print-color-adjust:exact; */
       print-color-adjust:exact;
       color-adjust:exact;
     }
@@ -2704,7 +2682,6 @@ Strategy: pure static HTML table, images as embedded base64.
       ${gstRowHtml}
       <tr style="background:#0D1B2A;">
         <td colspan="3" style="padding:12px 18px;text-align:right;border:1px solid #1a2f44;color:#C4913A;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">
-/* Grand Total */
         </td>
         <td style="padding:12px 16px;text-align:center;border:1px solid #1a2f44;">
           <div style="font-size:22px;font-weight:900;color:#fff;font-family:'Fraunces',Georgia,serif;">
@@ -2771,10 +2748,10 @@ Strategy: pure static HTML table, images as embedded base64.
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <button className="btn btn-out" onClick={() => setShowBulkDrive(true)} style={{ fontSize:13, padding:"9px 18px", gap:6 }}>
-//📁 Add from Drive
+          📁 Add from Drive
           </button>
           <button className="btn btn-gold" onClick={printQuotation} style={{ fontSize:14, padding:"10px 22px", gap:6 }}>
-//🖨️ Print / Save PDF
+          🖨️ Print / Save PDF
           </button>
         </div>
       </div>
@@ -2807,7 +2784,7 @@ background:"#0D1B2A", color:"#fff", padding:"12px 24px", borderRadius:12,
           <div className="card" style={{ padding:16 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A" }}>
-/* Prepared For */
+            Prepared For
               </div>
               {contacts.length > 0 && (
                 <button onClick={() => setShowContacts(s => !s)}
@@ -2900,7 +2877,7 @@ background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#
 
           <div className="card" style={{ padding:16 }}>
             <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A", marginBottom:12 }}>
-/* Quotation Details */
+            Quotation Details
             </div>
             {[["ref","Reference No."],["date","Date"],["validity","Valid For"]].map(([k,lbl]) => (
               <div key={k} style={{ marginBottom:10 }}>
@@ -2921,7 +2898,7 @@ background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#
 
           <div className="card" style={{ padding:16 }}>
             <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A", marginBottom:14 }}>
-/* Summary */
+            Summary
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
               <span style={{ color:"#666" }}>Sum of prices</span>
@@ -2946,7 +2923,7 @@ background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#
             </div>
             <button className="btn btn-gold" onClick={printQuotation}
               style={{ width:"100%", marginTop:16, fontSize:14, padding:12, gap:6 }}>
-//🖨️ Print / Save as PDF
+          🖨️ Print / Save as PDF
             </button>
           </div>
 
@@ -3023,12 +3000,10 @@ function ExportsModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  /* Merge overrides into display rows */
   const importers = allImporters.map(x => ({
     ...x, ...(overrides[x.id] || {})
   }));
 
-  /* Save override (status / email / notes) locally */
   const saveOverride = (id, patch) => {
     setOverrides(prev => {
       const next = { ...prev, [id]: { ...(prev[id]||{}), ...patch }};
@@ -3066,10 +3041,8 @@ function ExportsModule() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageRows   = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
-  /* Reset page when filters change */
   useEffect(() => setPage(1), [fSearch, fCountry, fStatus, fHS, sortBy]);
 
-  /* Status stats */
   const stats = {
 total:       importers.length,
     new:         importers.filter(x => !x.status || x.status === "New").length,
@@ -3275,7 +3248,7 @@ fontSize:13, fontWeight:500, zIndex:99999,
                 <>
                   <div style={{ fontSize:48, marginBottom:16 }}>✈️</div>
                   <div style={{ fontSize:17, fontWeight:700, color:"var(--label)", marginBottom:8 }}>
-//Customs Export Database — Apr 2023
+              Customs Export Database — Apr 2023
                   </div>
                   <div style={{ fontSize:13, color:"var(--label2)", marginBottom:6, lineHeight:1.7 }}>
                     14,751 importers · 235 countries · HS 6302 &amp; 6304<br/>
@@ -3427,7 +3400,7 @@ fontSize:13, fontWeight:500, zIndex:99999,
                                 <div style={{ display:"flex", gap:4 }}>
                                   <button className="btn btn-gold btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
                                     onClick={() => { saveOverride(imp.id,{email:editDraft.email,contact:editDraft.contact,notes:editDraft.notes}); setEditingId(null); }}>
-/* Save */
+              Save
                                   </button>
                                   <button className="btn btn-out btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
                                     onClick={() => setEditingId(null)}>✕</button>
@@ -3451,7 +3424,6 @@ fontSize:13, fontWeight:500, zIndex:99999,
                   <div style={{ padding:"10px 16px", borderTop:"0.5px solid var(--sep)",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div style={{ fontSize:11, color:"var(--label3)" }}>
-/* Page {page} of {totalPages} · {filtered.length.toLocaleString()} results */
                     </div>
                     <div style={{ display:"flex", gap:6 }}>
                       <button className="btn btn-out btn-sm" disabled={page===1} onClick={() => setPage(1)} style={{ fontSize:11 }}>«</button>
@@ -3518,7 +3490,7 @@ fontSize:13, fontWeight:500, zIndex:99999,
               <label className="lbl">To ({selIds.length} selected)</label>
               {selIds.length === 0 ? (
                 <div style={{ padding:"10px 14px", background:"var(--fill3)", borderRadius:8, fontSize:12, color:"var(--label3)" }}>
-//Select importers from the panel → or go to Database, check rows, then return here.
+              Select importers from the panel → or go to Database, check rows, then return here.
                 </div>
               ) : (
                 <div style={{ padding:"8px 12px", background:"var(--fill3)", borderRadius:8,
@@ -3687,7 +3659,7 @@ export default function App() {
                          flexShrink:0, boxShadow:"0 2px 8px rgba(0,0,0,.15)" }} />
               <div>
                 <div style={{ fontSize:13, fontWeight:700, color:"var(--label)", letterSpacing:"-.02em", lineHeight:1.3 }}>
-/* Kshirsagar<br/>Hometextiles */
+                Kshirsagar<br/>Hometextiles
                 </div>
                 <div style={{ fontSize:10, color:"var(--label3)", marginTop:2 }}>terrytowel.in · Est. 1947</div>
               </div>
