@@ -493,162 +493,179 @@ function HalfSheet({ data, type }) {
   const totalQty = items.reduce((acc, i) => acc + parseInt(i.qty || 0), 0);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent("https://terrytowel.in/")}`;
   const isCourier = type === "COURIER COPY";
-  const navy = "#0D1B2A", gold = "#C9A84C";
 
   return (
-    <div style={{ fontFamily: "'Arial', sans-serif", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box", background: "white", overflow: "hidden" }}>
+    <div style={{ fontFamily:"'Arial',sans-serif", height:"100%", display:"flex",
+      flexDirection:"column", boxSizing:"border-box", background:"white", overflow:"hidden" }}>
 
-      {/* ── TOP HEADER BAND ── */}
-      <div style={{ background: navy, padding: "6px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <img src={KHT_LOGO} alt="KHT" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: `1.5px solid ${gold}` }} />
+      {/* ── HEADER — logo + name only, no dark background ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+        padding:"8px 14px 8px", borderBottom:"2px solid #111" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <img src={KHT_LOGO} alt="KHT"
+            style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover", flexShrink:0, border:"1.5px solid #999" }} />
           <div>
-            <div style={{ fontSize: 15, fontWeight: 900, color: "white", letterSpacing: "0.04em", textTransform: "uppercase", lineHeight: 1 }}>{sender.name}</div>
-            <div style={{ fontSize: 7, color: gold, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>
-              Crafting Quality Since 1947 · Solapur &nbsp;|&nbsp; {sender.phone} &nbsp;|&nbsp; {sender.website}
+            <div style={{ fontSize:14, fontWeight:900, color:"#111", letterSpacing:"0.04em", textTransform:"uppercase", lineHeight:1 }}>
+              {sender.name}
+            </div>
+            <div style={{ fontSize:7, color:"#666", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>
+              Manufacturers & Exporters of Hometextiles · Since 1947 · {sender.website}
             </div>
           </div>
         </div>
-        <div style={{ background: isCourier ? gold : "#FFFFFF22", color: isCourier ? navy : "white", fontSize: 8, fontWeight: 900, padding: "5px 14px", letterSpacing: "0.18em", textTransform: "uppercase", borderRadius: 3, border: isCourier ? "none" : "1.5px solid #ffffff44", whiteSpace: "nowrap" }}>
-          ✦ {type}
+        <div style={{ fontSize:8, fontWeight:900, color:"#111", padding:"4px 12px",
+          border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
+          textTransform:"uppercase", whiteSpace:"nowrap" }}>
+          {type}
         </div>
       </div>
 
       {/* ── MAIN BODY ── */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
-        {/* LEFT — SHIP TO (dominant, max space) */}
-        <div style={{ flex: "0 0 58%", borderRight: `3px solid ${navy}`, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        {/* LEFT — SHIP TO */}
+        <div style={{ flex:"0 0 58%", borderRight:"2px solid #111", padding:"12px 14px",
+          display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
 
-          {/* FROM section */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 7, fontWeight: 900, color: "#999", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: 4 }}>From</div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: navy }}>{sender.name}</div>
-            <div style={{ fontSize: 9, color: "#555", lineHeight: 1.5, marginTop: 1 }}>{sender.address}, {sender.city} – {sender.zip}</div>
+          {/* FROM — compact */}
+          <div style={{ marginBottom:8 }}>
+            <div style={{ fontSize:6.5, fontWeight:900, color:"#999", textTransform:"uppercase",
+              letterSpacing:"0.2em", marginBottom:3 }}>From</div>
+            <div style={{ fontSize:9.5, fontWeight:800, color:"#222" }}>{sender.name}</div>
+            <div style={{ fontSize:8.5, color:"#666", lineHeight:1.5, marginTop:1 }}>
+              {sender.address}, {sender.city} – {sender.zip} · {sender.phone}
+            </div>
           </div>
 
-          {/* Divider */}
-          <div style={{ borderTop: `2px solid ${gold}`, marginBottom: 12 }} />
+          {/* Thin rule */}
+          <div style={{ borderTop:"1px solid #ccc", marginBottom:10 }} />
 
-          {/* BIG TO ADDRESS */}
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <div style={{ fontSize: 7.5, fontWeight: 900, color: gold, textTransform: "uppercase", letterSpacing: "0.22em", whiteSpace: "nowrap" }}>Ship To</div>
-              <div style={{ flex: 1, height: "1.5px", background: `${gold}55` }} />
-            </div>
-
-            {/* RECIPIENT NAME — super large */}
-            <div style={{ fontSize: 28, fontWeight: 900, color: navy, lineHeight: 1.1, marginBottom: 4, wordBreak: "break-word" }}>
-              {recipient.name}
-            </div>
-
+          {/* SHIP TO */}
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:7, fontWeight:900, color:"#999", textTransform:"uppercase",
+              letterSpacing:"0.22em", marginBottom:8 }}>Ship To</div>
+            <div style={{ fontSize:26, fontWeight:900, color:"#111", lineHeight:1.1,
+              marginBottom:4, wordBreak:"break-word" }}>{recipient.name}</div>
             {recipient.company && (
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#333", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #eee" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#333", textTransform:"uppercase",
+                letterSpacing:"0.04em", marginBottom:7, paddingBottom:7, borderBottom:"1px solid #eee" }}>
                 {recipient.company}
               </div>
             )}
-
-            <div style={{ fontSize: 15, color: "#333", lineHeight: 1.9, marginBottom: 2 }}>
+            <div style={{ fontSize:13, color:"#444", lineHeight:1.8, marginBottom:2 }}>
               {(() => {
                 const parts = (recipient.address || "").split(",");
-                const line1 = parts.slice(0, 2).join(",");
+                const line1 = parts.slice(0,2).join(",");
                 const line2 = parts.slice(2).join(",").trim();
-                return (<>{line1}{line2 && <><br />{line2}</>}</>);
+                return (<>{line1}{line2 && <><br/>{line2}</>}</>);
               })()}
             </div>
-            <div style={{ fontSize: 16, fontWeight: 900, color: navy, marginBottom: 8 }}>
-              {recipient.city}{recipient.state ? `,\u00A0${recipient.state}` : ""} &nbsp;–&nbsp; <span style={{ letterSpacing: "0.08em" }}>{recipient.zip}</span>
+            <div style={{ fontSize:15, fontWeight:900, color:"#111", marginBottom:8 }}>
+              {recipient.city}{recipient.state ? `, ${recipient.state}` : ""} &nbsp;–&nbsp;
+              <span style={{ letterSpacing:"0.08em" }}>{recipient.zip}</span>
             </div>
-
             {recipient.phone && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F4F8", border: `1.5px solid #D8E2EE`, borderRadius: 5, padding: "5px 12px" }}>
-                <span style={{ fontSize: 13 }}>📞</span>
-                <span style={{ fontSize: 13, fontWeight: 900, color: navy, letterSpacing: "0.04em" }}>{recipient.phone}</span>
+              <div style={{ display:"inline-flex", alignItems:"center", gap:5,
+                border:"1.5px solid #ccc", borderRadius:5, padding:"4px 10px" }}>
+                <span style={{ fontSize:12 }}>📞</span>
+                <span style={{ fontSize:12, fontWeight:900, color:"#111", letterSpacing:"0.04em" }}>
+                  {recipient.phone}
+                </span>
               </div>
             )}
           </div>
 
-          {/* Signature row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 12, paddingTop: 10, borderTop: "1px solid #E8EDF3" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 90, borderBottom: "1.5px solid #555", marginBottom: 3 }} />
-              <div style={{ fontSize: 7, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", fontWeight: 700 }}>Receiver's Signature</div>
+          {/* Signatures */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end",
+            marginTop:10, paddingTop:8, borderTop:"1px solid #ddd" }}>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ width:80, borderBottom:"1px solid #888", marginBottom:3 }} />
+              <div style={{ fontSize:6.5, textTransform:"uppercase", letterSpacing:"0.1em", color:"#888", fontWeight:700 }}>
+                Receiver's Signature
+              </div>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 7.5, fontWeight: 700, color: "#555", marginBottom: 14 }}>For {sender.name}</div>
-              <div style={{ width: 90, borderBottom: "1.5px solid #555", marginBottom: 3 }} />
-              <div style={{ fontSize: 7, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", fontWeight: 700 }}>Authorised Signatory</div>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:7, fontWeight:700, color:"#666", marginBottom:12 }}>For {sender.name}</div>
+              <div style={{ width:80, borderBottom:"1px solid #888", marginBottom:3 }} />
+              <div style={{ fontSize:6.5, textTransform:"uppercase", letterSpacing:"0.1em", color:"#888", fontWeight:700 }}>
+                Authorised Signatory
+              </div>
             </div>
           </div>
         </div>
 
-        {/* RIGHT — DISPATCH INFO + ITEMS */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "14px 14px 10px" }}>
+        {/* RIGHT — DISPATCH INFO */}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"12px 12px 10px" }}>
 
-          {/* QR Code */}
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <img src={qrUrl} alt="QR" style={{ width: 72, height: 72, border: `2px solid ${navy}`, borderRadius: 6 }} />
-            <div style={{ fontSize: 7, color: "#aaa", marginTop: 3, letterSpacing: "0.1em", fontWeight: 700 }}>SCAN TO VERIFY</div>
+          {/* QR */}
+          <div style={{ textAlign:"center", marginBottom:10 }}>
+            <img src={qrUrl} alt="QR" style={{ width:68, height:68, border:"1px solid #ccc", borderRadius:4 }} />
+            <div style={{ fontSize:6.5, color:"#aaa", marginTop:2, letterSpacing:"0.1em", fontWeight:700 }}>SCAN TO VERIFY</div>
           </div>
 
-          {/* Dispatch Meta */}
-          <div style={{ borderRadius: 6, overflow: "hidden", border: `1.5px solid #D8E2EE`, marginBottom: 10 }}>
-            <div style={{ background: navy, padding: "5px 10px" }}>
-              <div style={{ fontSize: 8, fontWeight: 900, color: "white", letterSpacing: "0.14em", textTransform: "uppercase" }}>Dispatch Details</div>
+          {/* Dispatch details */}
+          <div style={{ border:"1.5px solid #ccc", borderRadius:5, overflow:"hidden", marginBottom:10 }}>
+            <div style={{ background:"#f5f5f5", padding:"4px 10px", borderBottom:"1px solid #ddd" }}>
+              <div style={{ fontSize:7.5, fontWeight:900, color:"#333", letterSpacing:"0.12em", textTransform:"uppercase" }}>
+                Dispatch Details
+              </div>
             </div>
             {[
               ["Date", formatDateIndian(dispatchInfo.date)],
-              ["Via", dispatchInfo.courierName],
+              ["Via",  dispatchInfo.courierName],
               ...(dispatchInfo.trackingNo ? [["Tracking #", dispatchInfo.trackingNo]] : []),
-              ...(dispatchInfo.weight ? [["Weight", `${dispatchInfo.weight} ${dispatchInfo.weightUnit}`]] : []),
+              ...(dispatchInfo.weight    ? [["Weight",     `${dispatchInfo.weight} ${dispatchInfo.weightUnit}`]] : []),
               ["Value", `₹ ${dispatchInfo.declaredValue || "0"}`],
             ].map(([k, v], idx, arr) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "4px 10px", borderBottom: idx < arr.length - 1 ? "1px solid #F0F4F8" : "none", background: idx % 2 === 0 ? "white" : "#FAFCFF" }}>
-                <span style={{ fontSize: 8, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{k}</span>
-                <span style={{ fontSize: 9, fontWeight: 900, color: navy, textAlign: "right", maxWidth: "58%", wordBreak: "break-word" }}>{v}</span>
+              <div key={k} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
+                padding:"4px 10px", borderBottom: idx < arr.length-1 ? "1px solid #eee" : "none",
+                background: idx%2===0 ? "white" : "#fafafa" }}>
+                <span style={{ fontSize:7.5, color:"#888", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>{k}</span>
+                <span style={{ fontSize:8.5, fontWeight:800, color:"#111", textAlign:"right", maxWidth:"58%", wordBreak:"break-word" }}>{v}</span>
               </div>
             ))}
           </div>
 
-          {/* Items Table */}
-          <div style={{ borderRadius: 6, overflow: "hidden", border: `1.5px solid #D8E2EE`, flex: 1 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 8.5 }}>
+          {/* Items */}
+          <div style={{ border:"1.5px solid #ccc", borderRadius:5, overflow:"hidden", flex:1 }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:8.5 }}>
               <thead>
-                <tr>
-                  <th style={{ background: gold, color: navy, padding: "5px 8px", fontSize: 7.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "left" }}>Items Dispatched</th>
-                  <th style={{ background: gold, color: navy, padding: "5px 8px", fontSize: 7.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "center", width: 32 }}>Qty</th>
+                <tr style={{ background:"#f5f5f5", borderBottom:"1px solid #ddd" }}>
+                  <th style={{ padding:"5px 8px", fontSize:7, fontWeight:900, textTransform:"uppercase",
+                    letterSpacing:"0.1em", textAlign:"left", color:"#444" }}>Items Dispatched</th>
+                  <th style={{ padding:"5px 8px", fontSize:7, fontWeight:900, textTransform:"uppercase",
+                    letterSpacing:"0.1em", textAlign:"center", color:"#444", width:32 }}>Qty</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={i} style={{ background: i % 2 === 0 ? "white" : "#FFFDF5" }}>
-                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #F5F0E8", verticalAlign: "top" }}>
-                      <div style={{ fontWeight: 800, color: navy, fontSize: 8.5 }}>{item.type}</div>
-                      {item.desc && <div style={{ color: "#888", fontSize: 7.5, marginTop: 1 }}>{item.desc}</div>}
+                  <tr key={i} style={{ borderBottom:"1px solid #f0f0f0" }}>
+                    <td style={{ padding:"4px 8px", verticalAlign:"top" }}>
+                      <div style={{ fontWeight:800, color:"#111", fontSize:8.5 }}>{item.type}</div>
+                      {item.desc && <div style={{ color:"#888", fontSize:7.5, marginTop:1 }}>{item.desc}</div>}
                     </td>
-                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #F5F0E8", textAlign: "center", fontWeight: 900, color: navy }}>{item.qty}</td>
+                    <td style={{ padding:"4px 8px", textAlign:"center", fontWeight:900, color:"#111" }}>{item.qty}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr style={{ background: `${navy}11` }}>
-                  <td style={{ padding: "5px 8px", fontWeight: 900, textAlign: "right", color: navy, fontSize: 9, borderTop: `2px solid ${navy}` }}>Total Pieces</td>
-                  <td style={{ padding: "5px 8px", textAlign: "center", fontWeight: 900, color: navy, fontSize: 11, borderTop: `2px solid ${navy}` }}>{totalQty}</td>
+                <tr style={{ borderTop:"2px solid #ccc", background:"#f9f9f9" }}>
+                  <td style={{ padding:"5px 8px", fontWeight:900, textAlign:"right", color:"#333", fontSize:9 }}>Total Pieces</td>
+                  <td style={{ padding:"5px 8px", textAlign:"center", fontWeight:900, color:"#111", fontSize:11 }}>{totalQty}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
           {/* GST note */}
-          <div style={{ marginTop: 8, fontSize: 7.5, color: "#888", textAlign: "center" }}>
-            GST: <strong style={{ color: navy }}>{sender.gst}</strong> &nbsp;·&nbsp; No Commercial Value
+          <div style={{ marginTop:7, fontSize:7, color:"#aaa", textAlign:"center" }}>
+            GST: <strong style={{ color:"#555" }}>{sender.gst}</strong> &nbsp;·&nbsp; No Commercial Value
           </div>
         </div>
       </div>
     </div>
   );
 }
-
 function PrintTemplate({ data }) {
   return (
     <div style={{ width: "210mm", height: "296mm", background: "white", display: "flex", flexDirection: "column", fontFamily: "Arial, sans-serif", overflow: "hidden" }}>
@@ -679,54 +696,33 @@ function PrintTemplate({ data }) {
 }
 
 function EnvelopeTemplate({ data }) {
-  const { recipient, sender } = data;
-  const navy = "#0D1B2A", gold = "#C9A84C";
+  const { recipient } = data;
   return (
-    <div style={{ width: "9in", height: "4.5in", background: "white", position: "relative", fontFamily: "'Arial', sans-serif", boxSizing: "border-box", overflow: "hidden" }}>
-      {/* TOP NAVY BAND */}
-      <div style={{ background: navy, padding: "8px 18px", display: "flex", alignItems: "center", gap: 10 }}>
-        <img src={KHT_LOGO} alt="KHT" style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: `1.5px solid ${gold}`, flexShrink: 0 }} />
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 900, color: "white", letterSpacing: "0.06em", textTransform: "uppercase", lineHeight: 1 }}>Kshirsagar Hometextiles</div>
-          <div style={{ fontSize: 7.5, color: gold, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 3 }}>
-            Crafting Quality Since 1947 · Solapur &nbsp;|&nbsp; {SENDER.phone} &nbsp;|&nbsp; {SENDER.website}
-          </div>
+    <div id="doc-preview" style={{
+      width:"9in", height:"4.5in", background:"white", position:"relative",
+      fontFamily:"'Arial',sans-serif", boxSizing:"border-box", overflow:"hidden",
+      display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0.6in 0.5in 0.6in 0"
+    }}>
+      {/* ADDRESS BLOCK — right-aligned, big clear type for window envelope */}
+      <div style={{ width:"3.8in", textAlign:"left" }}>
+        <div style={{ fontSize:9, fontWeight:700, color:"#aaa", textTransform:"uppercase", letterSpacing:"0.14em", marginBottom:10 }}>To</div>
+        <div style={{ fontSize:20, fontWeight:900, color:"#111", lineHeight:1.15, marginBottom:4 }}>{recipient.name}</div>
+        {recipient.company && (
+          <div style={{ fontSize:13, fontWeight:700, color:"#333", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 }}>{recipient.company}</div>
+        )}
+        <div style={{ fontSize:12, color:"#444", lineHeight:1.7 }}>
+          {recipient.address}
         </div>
+        <div style={{ fontSize:13, fontWeight:700, color:"#222", marginTop:4 }}>
+          {recipient.city}{recipient.state ? `, ${recipient.state}` : ""} – {recipient.zip}
+        </div>
+        {recipient.phone && (
+          <div style={{ fontSize:11, color:"#666", marginTop:6 }}>Ph: {recipient.phone}</div>
+        )}
       </div>
-
-      {/* BODY */}
-      <div style={{ display: "flex", height: "calc(100% - 56px)" }}>
-        {/* LEFT — FROM */}
-        <div style={{ width: "42%", padding: "18px 20px", borderRight: `2px solid ${navy}`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ fontSize: 8, fontWeight: 800, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 6 }}>From</div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: navy, lineHeight: 1.3 }}>{SENDER.name}</div>
-          <div style={{ fontSize: 9.5, color: "#555", lineHeight: 1.6, marginTop: 4 }}>
-            {SENDER.address}, {SENDER.address2}<br/>
-            {SENDER.city} – {SENDER.zip}<br/>
-            {SENDER.phone}
-          </div>
-          <div style={{ fontSize: 8.5, color: gold, fontWeight: 700, marginTop: 6, letterSpacing: "0.06em" }}>GST: {SENDER.gst}</div>
-        </div>
-
-        {/* RIGHT — TO */}
-        <div style={{ flex: 1, padding: "20px 24px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ fontSize: 8, fontWeight: 800, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 8 }}>To</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: navy, lineHeight: 1.1, marginBottom: 4 }}>{recipient.name}</div>
-          {recipient.company && <div style={{ fontSize: 14, fontWeight: 700, color: "#444", textTransform: "uppercase", marginBottom: 4 }}>{recipient.company}</div>}
-          <div style={{ fontSize: 13, color: "#333", lineHeight: 1.6 }}>
-            {recipient.address}<br/>
-            {recipient.city}{recipient.state ? `, ${recipient.state}` : ""} – {recipient.zip}
-          </div>
-          {recipient.phone && <div style={{ fontSize: 12, fontWeight: 700, color: navy, marginTop: 8 }}>Ph: {recipient.phone}</div>}
-        </div>
-      </div>
-
-      {/* BOTTOM GOLD STRIP */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${gold}, ${navy}, ${gold})` }} />
     </div>
   );
 }
-
 /* ═══════════════════════════════════════════════════════════════
    PRINT PREVIEW OVERLAY
 ═══════════════════════════════════════════════════════════════ */
@@ -1481,13 +1477,24 @@ function ProductsModule() {
   const [waSharing, setWaSharing] = useState(false);
   const fileRef = useRef();
 
-  const fetchImages = async () => {
+  const fetchImages = async (force = false) => {
     if (!driveUrl) return;
+    // Serve from cache instantly, then refresh in background
+    const cacheKey = "kht_img_cache";
+    if (!force) {
+      try {
+        const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+        if (cached && Date.now() - cached.ts < 120000) { setImages(cached.data); setLoading(false); }
+      } catch {}
+    }
     setLoading(true);
     try {
       const res = await fetch(`${driveUrl}?action=list&t=${Date.now()}`);
       const data = await res.json();
-      if (data.ok) setImages(data.images || []);
+      if (data.ok) {
+        setImages(data.images || []);
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: data.images || [] })); } catch {}
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -1495,7 +1502,7 @@ function ProductsModule() {
   useEffect(() => { fetchImages(); }, [driveUrl]);
   useEffect(() => {
     if (!driveUrl) return;
-    const t = setInterval(fetchImages, 30000);
+    const t = setInterval(() => fetchImages(true), 60000);
     return () => clearInterval(t);
   }, [driveUrl]);
 
@@ -1634,7 +1641,7 @@ function ProductsModule() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {driveUrl && <>
-            <button className="btn btn-out btn-sm" onClick={fetchImages} disabled={loading}>
+            <button className="btn btn-out btn-sm" onClick={() => fetchImages(true)} disabled={loading}>
               <RefreshCw size={13} className={loading ? "spin" : ""} /> {loading ? "Syncing…" : "Sync"}
             </button>
             <button className="btn btn-gold btn-sm" onClick={() => {
@@ -2304,14 +2311,17 @@ const EMPTY_ROW = () => ({
   price:   "",        // unit price per piece
 });
 
-/* ── Drive Picker — single select, fetches base64 at confirm time ── */
-function QuoteDrivePickerModal({ driveUrl, onPick, onClose }) {
+/* ── Drive Picker — supports single-row OR bulk multi-select ── */
+function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMode = false }) {
   const [imgs, setImgs]     = useState([]);
   const [cats, setCats]     = useState([]);
   const [selCat, setSelCat] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  /* single-select */
   const [sel, setSel]       = useState(null);
+  /* multi-select — set of img objects */
+  const [multiSel, setMultiSel] = useState([]);
   const [err, setErr]       = useState(null);
 
   useEffect(() => {
@@ -2320,90 +2330,115 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onClose }) {
       .then(d => {
         if (d.ok && d.images) {
           setImgs(d.images);
-          const c = ["ALL", ...new Set(d.images.map(x => x.cat).filter(Boolean))];
-          setCats(c);
-        } else { setErr("Could not load Drive images."); }
+          setCats(["ALL", ...new Set(d.images.map(x => x.cat).filter(Boolean))]);
+        } else setErr("Could not load Drive images.");
       })
-      .catch(() => setErr("Network error loading Drive images."))
+      .catch(() => setErr("Network error."))
       .finally(() => setLoading(false));
   }, []);
 
   const visible = selCat === "ALL" ? imgs : imgs.filter(x => x.cat === selCat);
 
-  /* On confirm: fetch base64 via Apps Script proxy so the dataUrl is self-contained */
-  const confirm = async () => {
-    if (!sel) return;
-    setFetching(true);
-    try {
-      const r = await fetch(`${driveUrl}?action=getBase64&id=${sel.id}&t=${Date.now()}`);
-      const d = await r.json();
-      if (d.ok && d.base64) {
-        const dataUrl = `data:${d.mimeType || "image/jpeg"};base64,${d.base64}`;
-        onPick({ dataUrl, imgName: sel.name });
-      } else {
-        /* Fallback: use Google thumbnail URL as preview (may not print) */
-        onPick({ dataUrl: sel.thumb || sel.url, imgName: sel.name });
-      }
-    } catch {
-      onPick({ dataUrl: sel.thumb || sel.url, imgName: sel.name });
-    } finally { setFetching(false); }
+  const toggleMulti = (img) => {
+    setMultiSel(prev =>
+      prev.find(x => x.id === img.id) ? prev.filter(x => x.id !== img.id) : [...prev, img]
+    );
   };
 
-  const ov = {
-    position:"fixed", inset:0, background:"rgba(13,27,42,.72)",
-    zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center"
+  /* Fetch base64 for a single img */
+  const fetchBase64 = async (img) => {
+    try {
+      const r = await fetch(`${driveUrl}?action=getBase64&id=${img.id}&t=${Date.now()}`);
+      const d = await r.json();
+      if (d.ok && d.base64) return { dataUrl: `data:${d.mimeType||"image/jpeg"};base64,${d.base64}`, imgName: img.name };
+    } catch {}
+    return { dataUrl: img.thumb || img.url, imgName: img.name };
   };
-  const box = {
-    background:"#fff", borderRadius:16, width:660, maxWidth:"95vw",
-    maxHeight:"82vh", display:"flex", flexDirection:"column",
-    boxShadow:"0 24px 80px rgba(0,0,0,.4)"
+
+  /* Single confirm */
+  const confirmSingle = async () => {
+    if (!sel) return;
+    setFetching(true);
+    const result = await fetchBase64(sel);
+    onPick(result);
+    setFetching(false);
   };
+
+  /* Bulk confirm — fetch all selected in parallel */
+  const confirmMulti = async () => {
+    if (!multiSel.length) return;
+    setFetching(true);
+    const results = await Promise.all(multiSel.map(fetchBase64));
+    onPickMulti(results);
+    setFetching(false);
+  };
+
+  const ov = { position:"fixed", inset:0, background:"rgba(0,0,0,.45)", backdropFilter:"blur(4px)",
+    zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center" };
+  const box = { background:"rgba(255,255,255,.96)", backdropFilter:"blur(20px)",
+    borderRadius:18, width:680, maxWidth:"96vw", maxHeight:"86vh",
+    display:"flex", flexDirection:"column", boxShadow:"0 24px 80px rgba(0,0,0,.22)",
+    border:"0.5px solid rgba(0,0,0,.08)" };
+  const isSelected = (img) => multiMode ? !!multiSel.find(x => x.id === img.id) : sel?.id === img.id;
 
   return (
     <div style={ov} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={box}>
         {/* Header */}
-        <div style={{ padding:"16px 20px", borderBottom:"1px solid #E3DDD4", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ padding:"16px 20px", borderBottom:"0.5px solid rgba(0,0,0,.08)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <div style={{ fontWeight:800, fontSize:15, color:"#0D1B2A" }}>📁 Pick from Drive</div>
-            <div style={{ fontSize:11, color:"#999", marginTop:2 }}>Select one image for this product row</div>
+            <div style={{ fontWeight:700, fontSize:15, color:"var(--label)" }}>
+              {multiMode ? "📁 Select Multiple Images from Drive" : "📁 Pick from Drive"}
+            </div>
+            <div style={{ fontSize:11, color:"var(--label3)", marginTop:2 }}>
+              {multiMode ? `${multiSel.length} selected — each image will become a product row` : "Select one image for this row"}
+            </div>
           </div>
-          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"#999" }}>✕</button>
+          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"var(--label3)", lineHeight:1 }}>✕</button>
         </div>
 
         {/* Category pills */}
         {cats.length > 1 && (
-          <div style={{ padding:"10px 20px", display:"flex", gap:6, flexWrap:"wrap", borderBottom:"1px solid #f0ece6" }}>
+          <div style={{ padding:"10px 20px", display:"flex", gap:6, flexWrap:"wrap", borderBottom:"0.5px solid rgba(0,0,0,.06)" }}>
             {cats.map(c => (
               <button key={c} onClick={() => setSelCat(c)}
-                style={{ padding:"4px 12px", borderRadius:20, border:"1.5px solid", fontSize:11, fontWeight:600, cursor:"pointer",
-                  borderColor: selCat===c ? "#C4913A" : "#ddd",
-                  background:  selCat===c ? "#C4913A" : "#fff",
-                  color:       selCat===c ? "#fff"    : "#666" }}>
+                style={{ padding:"4px 12px", borderRadius:20, border:"1.5px solid",
+                  fontSize:11, fontWeight:600, cursor:"pointer",
+                  borderColor: selCat===c ? "var(--blue)" : "rgba(0,0,0,.12)",
+                  background: selCat===c ? "var(--blue)" : "transparent",
+                  color: selCat===c ? "#fff" : "var(--label2)" }}>
                 {c}
               </button>
             ))}
           </div>
         )}
 
-        {/* Image grid */}
-        <div style={{ flex:1, overflowY:"auto", padding:16 }}>
-          {loading ? (
-            <div style={{ textAlign:"center", padding:40, color:"#999" }}>Loading images…</div>
-          ) : err ? (
-            <div style={{ textAlign:"center", padding:40, color:"#e55" }}>{err}</div>
-          ) : visible.length === 0 ? (
-            <div style={{ textAlign:"center", padding:40, color:"#bbb" }}>No images in this category.</div>
-          ) : (
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))", gap:8 }}>
+        {/* Grid */}
+        <div style={{ flex:1, overflowY:"auto", padding:"14px 16px" }}>
+          {loading && <div style={{ textAlign:"center", padding:40, color:"var(--label3)" }}>Loading from Drive…</div>}
+          {err    && <div style={{ textAlign:"center", padding:40, color:"var(--red)" }}>{err}</div>}
+          {!loading && !err && visible.length === 0 && (
+            <div style={{ textAlign:"center", padding:40, color:"var(--label3)" }}>No images in this category.</div>
+          )}
+          {!loading && !err && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:10 }}>
               {visible.map(img => (
-                <div key={img.id} onClick={() => setSel(img)}
-                  style={{ cursor:"pointer", borderRadius:8, overflow:"hidden", border:"3px solid",
-                    borderColor: sel?.id === img.id ? "#C4913A" : "transparent",
-                    boxShadow: sel?.id === img.id ? "0 0 0 2px rgba(196,145,58,.4)" : "0 1px 4px rgba(0,0,0,.1)" }}>
+                <div key={img.id}
+                  onClick={() => multiMode ? toggleMulti(img) : setSel(img)}
+                  style={{ cursor:"pointer", borderRadius:10, overflow:"hidden",
+                    border: isSelected(img) ? "2.5px solid var(--blue)" : "2px solid rgba(0,0,0,.07)",
+                    boxShadow: isSelected(img) ? "0 0 0 3px rgba(0,122,255,.18)" : "0 1px 4px rgba(0,0,0,.08)",
+                    position:"relative" }}>
+                  {isSelected(img) && (
+                    <div style={{ position:"absolute", top:5, right:5, width:20, height:20, borderRadius:"50%",
+                      background:"var(--blue)", display:"flex", alignItems:"center", justifyContent:"center",
+                      fontSize:11, color:"#fff", fontWeight:800, zIndex:1 }}>✓</div>
+                  )}
                   <img src={img.thumb || img.url} alt={img.name}
                     style={{ width:"100%", aspectRatio:"1", objectFit:"cover", display:"block" }} />
-                  <div style={{ padding:"4px 6px", fontSize:9, color:"#666", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  <div style={{ padding:"5px 7px", fontSize:9, color:"var(--label2)",
+                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                    background:"rgba(255,255,255,.9)" }}>
                     {img.name}
                   </div>
                 </div>
@@ -2413,16 +2448,34 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding:"12px 20px", borderTop:"1px solid #E3DDD4", display:"flex", justifyContent:"flex-end", gap:10 }}>
-          <button onClick={onClose}
-            style={{ padding:"8px 20px", borderRadius:8, border:"1.5px solid #ddd", background:"#fff", cursor:"pointer", fontWeight:600, fontSize:13 }}>
-            Cancel
-          </button>
-          <button onClick={confirm} disabled={!sel || fetching}
-            style={{ padding:"8px 24px", borderRadius:8, border:"none", background: sel ? "#C4913A" : "#ddd",
-              color: sel ? "#fff" : "#999", cursor: sel ? "pointer" : "default", fontWeight:700, fontSize:13 }}>
-            {fetching ? "Loading…" : sel ? `Use: ${sel.name.slice(0,22)}` : "Select an image"}
-          </button>
+        <div style={{ padding:"12px 20px", borderTop:"0.5px solid rgba(0,0,0,.08)", display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+          <div style={{ fontSize:12, color:"var(--label3)" }}>
+            {multiMode && multiSel.length > 0 && `${multiSel.length} image${multiSel.length>1?"s":""} selected`}
+          </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={onClose}
+              style={{ padding:"8px 20px", borderRadius:8, border:"1px solid rgba(0,0,0,.12)",
+                background:"transparent", cursor:"pointer", fontWeight:600, fontSize:13, color:"var(--label2)" }}>
+              Cancel
+            </button>
+            {multiMode ? (
+              <button onClick={confirmMulti} disabled={!multiSel.length || fetching}
+                style={{ padding:"8px 24px", borderRadius:8, border:"none",
+                  background: multiSel.length ? "var(--blue)" : "rgba(0,0,0,.1)",
+                  color: multiSel.length ? "#fff" : "var(--label3)",
+                  cursor: multiSel.length ? "pointer" : "default", fontWeight:700, fontSize:13 }}>
+                {fetching ? "Loading images…" : multiSel.length ? `Add ${multiSel.length} Item${multiSel.length>1?"s":""}` : "Select images"}
+              </button>
+            ) : (
+              <button onClick={confirmSingle} disabled={!sel || fetching}
+                style={{ padding:"8px 24px", borderRadius:8, border:"none",
+                  background: sel ? "var(--blue)" : "rgba(0,0,0,.1)",
+                  color: sel ? "#fff" : "var(--label3)",
+                  cursor: sel ? "pointer" : "default", fontWeight:700, fontSize:13 }}>
+                {fetching ? "Loading…" : sel ? `Use: ${sel.name.slice(0,22)}` : "Select an image"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -2542,16 +2595,34 @@ function PictureQuotationModule() {
     ref:      `KHT/${new Date().getFullYear()}/${String(Math.floor(Math.random()*900)+100)}`,
     date:     new Date().toISOString().slice(0,10),
     validity: "15 days",
-    notes:    "Prices are ex-factory Solapur. GST @12% applicable. Minimum order quantities apply.",
+    notes:    "Prices are ex-factory Solapur. GST @5% applicable. Minimum order quantities apply.",
     showGst:  true,
-    gstRate:  12,
+    gstRate:  5,
   });
   const [contacts, setContacts] = useState([]);
   const [showContacts, setShowContacts] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const [toast, setToast] = useState(null);
+  const [showBulkDrive, setShowBulkDrive] = useState(false);
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3200); };
+
+  /* Bulk add: each picked image becomes a new row */
+  const handleBulkPick = (pickedImgs) => {
+    const newRows = pickedImgs.map(img => ({
+      ...EMPTY_ROW(),
+      dataUrl: img.dataUrl,
+      imgName: img.imgName,
+      name: img.imgName.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "), // auto-name from filename
+    }));
+    setRows(prev => {
+      // Remove blank rows at the end first
+      const trimmed = prev.filter(r => r.name || r.dataUrl || r.price);
+      return [...(trimmed.length ? trimmed : []), ...newRows];
+    });
+    setShowBulkDrive(false);
+    showToast(`✅ Added ${newRows.length} product${newRows.length > 1 ? "s" : ""} from Drive`);
+  };
 
   /* Load contacts from dispatch webhook */
   useEffect(() => {
@@ -2806,10 +2877,26 @@ function PictureQuotationModule() {
           <div className="st">🧾 Picture Quotation</div>
           <div className="text-sm text-lt" style={{ marginTop:2 }}>Product photos with pricing · Print to PDF</div>
         </div>
-        <button className="btn btn-gold" onClick={printQuotation} style={{ fontSize:14, padding:"10px 22px", gap:6 }}>
-          🖨️ Print / Save PDF
-        </button>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <button className="btn btn-out" onClick={() => setShowBulkDrive(true)} style={{ fontSize:13, padding:"9px 18px", gap:6 }}>
+            📁 Add from Drive
+          </button>
+          <button className="btn btn-gold" onClick={printQuotation} style={{ fontSize:14, padding:"10px 22px", gap:6 }}>
+            🖨️ Print / Save PDF
+          </button>
+        </div>
       </div>
+
+      {/* Bulk Drive picker */}
+      {showBulkDrive && (
+        <QuoteDrivePickerModal
+          driveUrl={driveUrl}
+          multiMode={true}
+          onPick={() => {}}
+          onPickMulti={handleBulkPick}
+          onClose={() => setShowBulkDrive(false)}
+        />
+      )}
 
       {toast && (
         <div style={{ position:"fixed", bottom:32, left:"50%", transform:"translateX(-50%)",
