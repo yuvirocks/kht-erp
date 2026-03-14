@@ -3164,7 +3164,7 @@ fontSize:13, fontWeight:500, zIndex:99999,
           <div className="st">✈️ Exports</div>
           <div className="text-sm text-lt" style={{ marginTop:3 }}>
             {dataLoaded
-              ? `${importers.length.toLocaleString()} importers · ${dbMeta.countries} countries · Customs 2023 — 6 months`
+              ? `${importers.length.toLocaleString()} importers · ${dbMeta.countries} countries · Apr 2023–Mar 2024`
               : "Global importer database — Customs export data"}
           </div>
         </div>
@@ -3251,7 +3251,7 @@ fontSize:13, fontWeight:500, zIndex:99999,
               Customs Export Database — Apr 2023
                   </div>
                   <div style={{ fontSize:13, color:"var(--label2)", marginBottom:6, lineHeight:1.7 }}>
-                    14,751 importers · 235 countries · HS 6302 &amp; 6304<br/>
+                    21,216 importers · 249 countries · HS 6302 &amp; 6304<br/>
                     Deploy <strong>importers.json</strong> (drop in repo root) then click Load, then click Load.
                   </div>
                   <button className="btn btn-gold" onClick={loadData} style={{ marginTop:8 }}>⬇ Load Database</button>
