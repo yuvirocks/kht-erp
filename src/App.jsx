@@ -43,7 +43,7 @@ function timeAgo(ts) {
 const anthropicFetch = (prompt, systemPrompt = "") => {
   const key = localStorage.getItem("kht_anthropic_key") || "";
   return fetch("https://api.anthropic.com/v1/messages", {
-//method: "POST",
+method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": key,
@@ -51,8 +51,8 @@ const anthropicFetch = (prompt, systemPrompt = "") => {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-//model: "claude-sonnet-4-20250514",
-//max_tokens: 1000,
+model: "claude-sonnet-4-20250514",
+max_tokens: 1000,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: "user", content: prompt }],
     }),
@@ -60,13 +60,13 @@ const anthropicFetch = (prompt, systemPrompt = "") => {
 };
 const getAnthropicKey = () => localStorage.getItem("kht_anthropic_key") || "";
 const SENDER = {
-//name: "Kshirsagar Hometextiles",
-//website: "www.terrytowel.in",
-//quotationLink: "terrytowel.in/quotation",
-//address: "Nath Pride, Near Civil Hospital",
-//address2: "Civil Chowk",
-//city: "Solapur", state: "Maharashtra", zip: "413003", country: "India",
-//email: "info@kshirsagar.com", phone: "+91 98225 49824", gst: "27ANLPK9383J1Z8"
+name: "Kshirsagar Hometextiles",
+website: "www.terrytowel.in",
+quotationLink: "terrytowel.in/quotation",
+address: "Nath Pride, Near Civil Hospital",
+address2: "Civil Chowk",
+city: "Solapur", state: "Maharashtra", zip: "413003", country: "India",
+email: "info@kshirsagar.com", phone: "+91 98225 49824", gst: "27ANLPK9383J1Z8"
 };
 
 const formatDateIndian = (dateVal) => {
@@ -420,7 +420,7 @@ function HalfSheet({ data, type }) {
           </div>
         </div>
         <div style={{ fontSize:8, fontWeight:900, color:"#111", padding:"4px 12px",
-//border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
+border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
           textTransform:"uppercase", whiteSpace:"nowrap" }}>
           {type}
         </div>
@@ -524,7 +524,7 @@ function HalfSheet({ data, type }) {
               ["Value", `₹ ${dispatchInfo.declaredValue || "0"}`],
             ].map(([k, v], idx, arr) => (
               <div key={k} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
-//padding:"4px 10px", borderBottom: idx < arr.length-1 ? "1px solid #eee" : "none",
+padding:"4px 10px", borderBottom: idx < arr.length-1 ? "1px solid #eee" : "none",
                 background: idx%2===0 ? "white" : "#fafafa" }}>
                 <span style={{ fontSize:7.5, color:"#888", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>{k}</span>
                 <span style={{ fontSize:8.5, fontWeight:800, color:"#111", textAlign:"right", maxWidth:"58%", wordBreak:"break-word" }}>{v}</span>
@@ -605,9 +605,9 @@ function EnvelopeTemplate({ data }) {
   const { recipient } = data;
   return (
     <div id="doc-preview" style={{
-//width:"9in", height:"4.5in", background:"white", position:"relative",
-//fontFamily:"'Arial',sans-serif", boxSizing:"border-box", overflow:"hidden",
-//display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0.6in 0.5in 0.6in 0"
+width:"9in", height:"4.5in", background:"white", position:"relative",
+fontFamily:"'Arial',sans-serif", boxSizing:"border-box", overflow:"hidden",
+display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0.6in 0.5in 0.6in 0"
     }}>
       {/* ADDRESS BLOCK — right-aligned, big clear type for window envelope */}
       <div style={{ width:"3.8in", textAlign:"left" }}>
@@ -797,11 +797,11 @@ function DispatchModule({ showNotif }) {
       if (sheetWebhookUrl) {
         const sheetPayload = {
           date: new Date(dispatchInfo.date).toLocaleDateString("en-IN"),
-//contactName: recipient.name, companyName: recipient.company,
-//address: fullAddress, city: recipient.city,
-//courier: dispatchInfo.courierName, tracking: dispatchInfo.trackingNo,
+contactName: recipient.name, companyName: recipient.company,
+address: fullAddress, city: recipient.city,
+courier: dispatchInfo.courierName, tracking: dispatchInfo.trackingNo,
           items: items.map(i => `${i.qty}x ${i.type}`).join(", "),
-//value: dispatchInfo.declaredValue, weight: weightString, phone: recipient.phone
+value: dispatchInfo.declaredValue, weight: weightString, phone: recipient.phone
         };
         fetch(sheetWebhookUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sheetPayload) }).catch(() => {});
       }
@@ -1238,7 +1238,7 @@ function HomeModule({ setActive }) {
             </div>
             <div style={{
               width: 8, height: 8, borderRadius: "50%", background: "var(--green)",
-//animation: "livepulse 2s infinite"
+animation: "livepulse 2s infinite"
             }} />
           </div>
 
@@ -1257,22 +1257,22 @@ function HomeModule({ setActive }) {
                   key={ev.id || i}
                   onClick={() => ev.module && setActive(ev.module)}
                   style={{
-//display: "flex", alignItems: "flex-start", gap: 12,
-//padding: "11px 18px",
+display: "flex", alignItems: "flex-start", gap: 12,
+padding: "11px 18px",
                     borderBottom: i < activity.length - 1 ? "0.5px solid rgba(0,0,0,.06)" : "none",
-//cursor: ev.module ? "pointer" : "default",
-//transition: "background .12s",
+cursor: ev.module ? "pointer" : "default",
+transition: "background .12s",
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = "rgba(0,122,255,.04)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   {/* Icon bubble */}
                   <div style={{
-//width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+width: 36, height: 36, borderRadius: 10, flexShrink: 0,
                     background: "rgba(0,0,0,.05)",
                     border: "0.5px solid rgba(0,0,0,.08)",
-//display: "flex", alignItems: "center", justifyContent: "center",
-//fontSize: 16
+display: "flex", alignItems: "center", justifyContent: "center",
+fontSize: 16
                   }}>{typeof ev.icon === "string" ? ev.icon : "📋"}</div>
 
                   {/* Text */}
@@ -1289,9 +1289,9 @@ function HomeModule({ setActive }) {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     {ev.module && (
                       <span style={{
-//fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
-//background: meta.color + "22",
-//color: meta.color,
+fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
+background: meta.color + "22",
+color: meta.color,
                         border: `1px solid ${meta.color}33`,
                       }}>{meta.label}</span>
                     )}
@@ -1317,9 +1317,9 @@ function HomeModule({ setActive }) {
                   style={{
                     background: "rgba(0,0,0,.04)",
                     border: "0.5px solid rgba(0,0,0,.07)",
-//borderRadius: 12, padding: "14px 10px",
-//cursor: "pointer", textAlign: "center",
-//transition: "all .15s",
+borderRadius: 12, padding: "14px 10px",
+cursor: "pointer", textAlign: "center",
+transition: "all .15s",
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,122,255,.08)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,.04)"; e.currentTarget.style.transform = ""; }}
@@ -1441,7 +1441,7 @@ function ProductsModule() {
         r.readAsDataURL(file);
       });
       const resp = await fetch(driveUrl, {
-//method: "POST",
+method: "POST",
         body: JSON.stringify({ base64, mimeType: file.type, filename: file.name, category: cat })
       });
       const data = await resp.json();
@@ -1459,7 +1459,7 @@ function ProductsModule() {
       // Upload a tiny placeholder to create the folder, then delete it client-side
       const placeholder = btoa("KHT");
       const resp = await fetch(driveUrl, {
-//method: "POST",
+method: "POST",
         body: JSON.stringify({ base64: placeholder, mimeType: "image/png", filename: ".keep", category: newCatName.trim() })
       });
       const data = await resp.json();
@@ -1584,8 +1584,8 @@ function ProductsModule() {
               <div
                 onClick={() => setFilter("All")}
                 style={{
-//display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-//width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
                   border: filter === "All" ? "2px solid var(--gold)" : "1.5px solid var(--border)",
                   background: filter === "All" ? "var(--gold-p)" : "var(--white)",
                   transition: "all .15s", boxShadow: filter === "All" ? "0 2px 8px rgba(196,145,58,.2)" : "var(--shadow-sm)"
@@ -1602,8 +1602,8 @@ function ProductsModule() {
                   key={cat}
                   onClick={() => { setFilter(cat); setUploadCat(cat); }}
                   style={{
-//display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-//width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
                     border: filter === cat ? "2px solid var(--gold)" : "1.5px solid var(--border)",
                     background: filter === cat ? "var(--gold-p)" : "var(--white)",
                     transition: "all .15s", boxShadow: filter === cat ? "0 2px 8px rgba(196,145,58,.2)" : "var(--shadow-sm)"
@@ -1619,10 +1619,10 @@ function ProductsModule() {
               <div
                 onClick={() => setShowAddCat(true)}
                 style={{
-//display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-//width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
                   border: "1.5px dashed var(--border)",
-//background: "transparent", transition: "all .15s",
+background: "transparent", transition: "all .15s",
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.background = "var(--gold-pp)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
@@ -1695,18 +1695,18 @@ function ProductsModule() {
                           onContextMenu={e => { e.preventDefault(); setMultiMode(true); toggleMultiSel(img); setSelected(null); }}
                           style={{
                             border: isMultiSelected ? "2.5px solid var(--gold)" : isSingleSelected ? "2px solid var(--gold)" : undefined,
-//position: "relative",
+position: "relative",
                             outline: isMultiSelected ? "3px solid rgba(196,145,58,.25)" : "none",
-//transition: "all .15s"
+transition: "all .15s"
                           }}>
                           {/* Multi-select checkbox */}
                           {multiMode && (
                             <div style={{
-//position: "absolute", top: 7, right: 7, zIndex: 2,
-//width: 20, height: 20, borderRadius: "50%",
+position: "absolute", top: 7, right: 7, zIndex: 2,
+width: 20, height: 20, borderRadius: "50%",
                               background: isMultiSelected ? "var(--gold)" : "rgba(255,255,255,.9)",
                               border: isMultiSelected ? "2px solid var(--gold)" : "2px solid #ccc",
-//display: "flex", alignItems: "center", justifyContent: "center",
+display: "flex", alignItems: "center", justifyContent: "center",
                               fontSize: 11, fontWeight: 900, color: "var(--navy)",
                               boxShadow: "0 1px 4px rgba(0,0,0,.2)"
                             }}>
@@ -2112,7 +2112,7 @@ function LoginScreen({ onLogin }) {
         }
         .lw::before{
           content:'';position:absolute;inset:0;pointer-events:none;
-//background:
+background:
             radial-gradient(ellipse 600px 400px at 20% 30%,rgba(0,122,255,.08) 0%,transparent 70%),
             radial-gradient(ellipse 500px 350px at 80% 70%,rgba(88,86,214,.06) 0%,transparent 65%),
             radial-gradient(ellipse 350px 250px at 60% 8%, rgba(52,199,89,.04) 0%,transparent 60%);
@@ -2195,12 +2195,12 @@ function LoginScreen({ onLogin }) {
 /* -- Data shape for one product row -- */
 const EMPTY_ROW = () => ({
   id: Math.random().toString(36).slice(2, 9),
-//dataUrl: null,      // base64 image — always dataUrl so print never needs fetch
+dataUrl: null,      // base64 image — always dataUrl so print never needs fetch
   imgName: "",
-//name:    "",        // product name / quality
-//size:    "",        // e.g. 60×90 inch
-//weight:  "",        // e.g. 600 GSM / 1200 gms
-//price:   "",        // unit price per piece
+name:    "",        // product name / quality
+size:    "",        // e.g. 60×90 inch
+weight:  "",        // e.g. 600 GSM / 1200 gms
+price:   "",        // unit price per piece
 });
 
 /* -- Drive Picker — supports single-row OR bulk multi-select -- */
@@ -2268,7 +2268,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
   const ov = { position:"fixed", inset:0, background:"rgba(0,0,0,.45)", backdropFilter:"blur(4px)",
     zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center" };
   const box = { background:"rgba(255,255,255,.96)", backdropFilter:"blur(20px)",
-//borderRadius:18, width:680, maxWidth:"96vw", maxHeight:"86vh",
+borderRadius:18, width:680, maxWidth:"96vw", maxHeight:"86vh",
     display:"flex", flexDirection:"column", boxShadow:"0 24px 80px rgba(0,0,0,.22)",
     border:"0.5px solid rgba(0,0,0,.08)" };
   const isSelected = (img) => multiMode ? !!multiSel.find(x => x.id === img.id) : sel?.id === img.id;
@@ -2295,7 +2295,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
             {cats.map(c => (
               <button key={c} onClick={() => setSelCat(c)}
                 style={{ padding:"4px 12px", borderRadius:20, border:"1.5px solid",
-//fontSize:11, fontWeight:600, cursor:"pointer",
+fontSize:11, fontWeight:600, cursor:"pointer",
                   borderColor: selCat===c ? "var(--blue)" : "rgba(0,0,0,.12)",
                   background: selCat===c ? "var(--blue)" : "transparent",
                   color: selCat===c ? "#fff" : "var(--label2)" }}>
@@ -2329,7 +2329,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
                   <img src={img.thumb || img.url} alt={img.name}
                     style={{ width:"100%", aspectRatio:"1", objectFit:"cover", display:"block" }} />
                   <div style={{ padding:"5px 7px", fontSize:9, color:"var(--label2)",
-//whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
                     background:"rgba(255,255,255,.9)" }}>
                     {img.name}
                   </div>
@@ -2390,7 +2390,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
       {hint && <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:".08em", marginBottom:2 }}>{hint}</div>}
       <input value={row[key]} onChange={e => onChange({ [key]: e.target.value })} placeholder={placeholder}
         style={{ width:"100%", border:"none", borderBottom:"1px solid #E8E4DF", padding:"4px 2px", fontSize:13,
-//outline:"none", background:"transparent", fontFamily:"inherit",
+outline:"none", background:"transparent", fontFamily:"inherit",
           fontWeight: key==="name" ? 700 : 400, color: key==="name" ? "#0D1B2A" : "#555" }} />
     </div>
   );
@@ -2415,7 +2415,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
             <img src={row.dataUrl} alt=""
               style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
             <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.45)",
-//display:"flex", alignItems:"center", justifyContent:"center",
+display:"flex", alignItems:"center", justifyContent:"center",
               opacity:0, transition:".15s" }}
               onMouseEnter={e => e.currentTarget.style.opacity = 1}
               onMouseLeave={e => e.currentTarget.style.opacity = 0}>
@@ -2424,7 +2424,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
           </div>
         ) : (
           <div style={{ width:110, height:110, borderRadius:8, border:"2px dashed #C4913A",
-//display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
             cursor:"pointer", gap:4, background:"#FFFBF5" }}
             onClick={() => fileRef.current?.click()}>
             <span style={{ fontSize:26 }}>📷</span>
@@ -2486,9 +2486,9 @@ function PictureQuotationModule() {
   const [meta, setMeta] = useState({
     ref:      `KHT/${new Date().getFullYear()}/${String(Math.floor(Math.random()*900)+100)}`,
     date:     new Date().toISOString().slice(0,10),
-//validity: "15 days",
-//notes:    "Prices are ex-factory Solapur. GST @5% applicable. Minimum order quantities apply.",
-//showGst:  true,
+validity: "15 days",
+notes:    "Prices are ex-factory Solapur. GST @5% applicable. Minimum order quantities apply.",
+showGst:  true,
     gstRate:  5,
   });
   const [contacts, setContacts] = useState([]);
@@ -2503,7 +2503,7 @@ function PictureQuotationModule() {
   const handleBulkPick = (pickedImgs) => {
     const newRows = pickedImgs.map(img => ({
       ...EMPTY_ROW(),
-//dataUrl: img.dataUrl,
+dataUrl: img.dataUrl,
       imgName: img.imgName,
       name: img.imgName.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "), // auto-name from filename
     }));
@@ -2557,7 +2557,7 @@ function PictureQuotationModule() {
 
   /* -------------------------------------------------------------
      PRINT / PDF
-//Strategy: pure static HTML table, images as embedded base64.
+Strategy: pure static HTML table, images as embedded base64.
 //Tables are the ONLY 100% reliable format for A4 print —
 //no flex, no grid, no transform, no canvas. Just HTML 4 table
 //layout that every browser print engine handles identically.
@@ -2792,7 +2792,7 @@ function PictureQuotationModule() {
 
       {toast && (
         <div style={{ position:"fixed", bottom:32, left:"50%", transform:"translateX(-50%)",
-//background:"#0D1B2A", color:"#fff", padding:"12px 24px", borderRadius:12,
+background:"#0D1B2A", color:"#fff", padding:"12px 24px", borderRadius:12,
           fontSize:13, fontWeight:600, zIndex:9999, boxShadow:"0 8px 32px rgba(0,0,0,.3)", whiteSpace:"nowrap" }}>
           {toast}
         </div>
@@ -2812,7 +2812,7 @@ function PictureQuotationModule() {
               {contacts.length > 0 && (
                 <button onClick={() => setShowContacts(s => !s)}
                   style={{ fontSize:11, padding:"4px 12px", border:"1.5px solid #C4913A", borderRadius:20,
-//background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#C4913A",
+background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#C4913A",
                     cursor:"pointer", fontWeight:700 }}>
                   👤 Pick Contact ({contacts.length})
                 </button>
@@ -3071,7 +3071,7 @@ function ExportsModule() {
 
   /* Status stats */
   const stats = {
-//total:       importers.length,
+total:       importers.length,
     new:         importers.filter(x => !x.status || x.status === "New").length,
     contacted:   importers.filter(x => ["Contacted","Interested","Negotiating","Sample Sent"].includes(x.status)).length,
     interested:  importers.filter(x => ["Interested","Negotiating"].includes(x.status)).length,
@@ -3082,13 +3082,13 @@ function ExportsModule() {
   const pushToSheet = async (rows) => {
     if (!webhookUrl) { showN("Set webhook URL in Settings first."); return; }
     const payload = rows.map(x => ({
-//id: x.id, company: x.company, country: x.country,
-//contact: x.contact||"", email: x.email||"", phone: x.phone||"",
-//product: x.products||"", city: x.port||"",
+id: x.id, company: x.company, country: x.country,
+contact: x.contact||"", email: x.email||"", phone: x.phone||"",
+product: x.products||"", city: x.port||"",
       volume: `${x.ships||0} shipments / $${(x.fob||0).toLocaleString()} FOB`,
-//status: x.status||"New",
+status: x.status||"New",
       notes: `HS: ${x.hs||x.hs_codes||""} | Source: ${x.source||"Customs Apr 2023"}`,
-//source: x.source||"Customs Apr 2023",
+source: x.source||"Customs Apr 2023",
     }));
     try {
       await fetch(webhookUrl, { method:"POST", mode:"no-cors",
@@ -3111,12 +3111,12 @@ function ExportsModule() {
     setAiLoading(true);
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
-//method:"POST",
+method:"POST",
         headers:{ "Content-Type":"application/json", "x-api-key": key,
           "anthropic-version":"2023-06-01",
           "anthropic-dangerous-direct-browser-access":"true" },
         body: JSON.stringify({
-//model:"claude-sonnet-4-20250514", max_tokens:700,
+model:"claude-sonnet-4-20250514", max_tokens:700,
           messages:[{ role:"user", content:
 `Write a professional B2B introduction email from Kshirsagar Hometextiles, Solapur, India.
 We manufacture & export premium terry towels, bath mats, bed linen, home textiles — "Two Elephants" brand — since 1947.
@@ -3155,7 +3155,7 @@ First line MUST be exactly: Subject: [the subject line]`
           emails: targets.map(t => t.email), subject: emailSubject, body: emailBody }) });
       const now = new Date().toLocaleDateString("en-IN");
       targets.forEach(t => saveOverride(t.id, {
-//lastContacted: now,
+lastContacted: now,
         status: (!t.status || t.status === "New") ? "Contacted" : t.status
       }));
       logActivity("✈️", `Export email → ${targets.length} importer${targets.length>1?"s":""}`, emailSubject, "exports");
@@ -3179,7 +3179,7 @@ First line MUST be exactly: Subject: [the subject line]`
       {notifMsg && (
         <div style={{ position:"fixed", top:16, right:16, background:"rgba(255,255,255,.96)",
           backdropFilter:"blur(20px)", color:"var(--label)", padding:"11px 18px", borderRadius:14,
-//fontSize:13, fontWeight:500, zIndex:99999,
+fontSize:13, fontWeight:500, zIndex:99999,
           boxShadow:"0 8px 32px rgba(0,0,0,.12)", border:"0.5px solid rgba(0,0,0,.08)" }}>
           {notifMsg}
         </div>
@@ -3562,7 +3562,7 @@ First line MUST be exactly: Subject: [the subject line]`
             </div>
             {!webhookUrl && (
               <div style={{ marginTop:10, padding:"8px 12px", background:"var(--orange-l)", borderRadius:8, fontSize:11, color:"#A05A00" }}>
-//⚠️ Webhook not configured — emails won't send. Add it in Settings.
+⚠️ Webhook not configured — emails won't send. Add it in Settings.
               </div>
             )}
           </div>
