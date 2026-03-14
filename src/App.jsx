@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Printer, Save, Plus, Trash2, FileSpreadsheet, Package, ArrowLeft, Settings, X, FileDown, RefreshCw, Database, Users, Send, Scissors, Mail } from "lucide-react";
 
-/* ═══════════════════════════════════════════════════════════════
-   GLOBAL CONSTANTS
-═══════════════════════════════════════════════════════════════ */
+// ── GLOBAL CONSTANTS ──────────────────────────────────────────────────────────
 const DEFAULT_SAMPLE_TYPES = [
   "Bath Towel (70x140)", "Hand Towel (40x60)", "Face Towel (30x30)",
   "Bath Mat", "Kitchen Towel", "Pool Towel", "Gym Towel", "Terry Fabric Swatch"
@@ -14,11 +12,8 @@ const DEFAULT_COURIERS = [
 ];
 const DEFAULT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbymS4iJvn2urnKLIyaTw49Xmo0Ltjb0k5_Q1hbNJeLyrfjkcuFMgC04PmJEbx-NY-8B/exec";
 const DEFAULT_PRODUCTS_DRIVE_URL = "https://script.google.com/macros/s/AKfycbz4cSEAqiENHZhkBDOJUiRoaXvmV7h7WY5Rilb_-hIUSLn3Of-I2pTk60voDP63k8Nf/exec";
-/* ─────────────────────────────────────────────────────────────────
-   GLOBAL ACTIVITY LOGGER
-   Call logActivity(icon, title, sub, module) from anywhere.
-   Stores up to 60 events in localStorage. HomeModule reads them.
-───────────────────────────────────────────────────────────────── */
+
+// ── GLOBAL ACTIVITY LOGGER ────────────────────────────────────────────────────
 const ACTIVITY_KEY = "kht_activity_log";
 function logActivity(icon, title, sub, module = "") {
   try {
@@ -48,7 +43,7 @@ function timeAgo(ts) {
 const anthropicFetch = (prompt, systemPrompt = "") => {
   const key = localStorage.getItem("kht_anthropic_key") || "";
   return fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
+//method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": key,
@@ -56,8 +51,8 @@ const anthropicFetch = (prompt, systemPrompt = "") => {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
+//model: "claude-sonnet-4-20250514",
+//max_tokens: 1000,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: "user", content: prompt }],
     }),
@@ -65,13 +60,13 @@ const anthropicFetch = (prompt, systemPrompt = "") => {
 };
 const getAnthropicKey = () => localStorage.getItem("kht_anthropic_key") || "";
 const SENDER = {
-  name: "Kshirsagar Hometextiles",
-  website: "www.terrytowel.in",
-  quotationLink: "terrytowel.in/quotation",
-  address: "Nath Pride, Near Civil Hospital",
-  address2: "Civil Chowk",
-  city: "Solapur", state: "Maharashtra", zip: "413003", country: "India",
-  email: "info@kshirsagar.com", phone: "+91 98225 49824", gst: "27ANLPK9383J1Z8"
+//name: "Kshirsagar Hometextiles",
+//website: "www.terrytowel.in",
+//quotationLink: "terrytowel.in/quotation",
+//address: "Nath Pride, Near Civil Hospital",
+//address2: "Civil Chowk",
+//city: "Solapur", state: "Maharashtra", zip: "413003", country: "India",
+//email: "info@kshirsagar.com", phone: "+91 98225 49824", gst: "27ANLPK9383J1Z8"
 };
 
 const formatDateIndian = (dateVal) => {
@@ -83,9 +78,7 @@ const formatDateIndian = (dateVal) => {
   } catch { return dateVal; }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   SAMPLE DATA (other modules)
-═══════════════════════════════════════════════════════════════ */
+/* -- SAMPLE DATA (other modules) -- */
 const CUSTOMERS = [
   { id: 1, name: "Rajesh Mehta", biz: "Home Needs Store, Pune", phone: "9876543210", email: "rajesh@homeneedsstore.com", city: "Pune", status: "Hot", lastContact: "2 days ago" },
   { id: 2, name: "Sunita Kapoor", biz: "Kapoor Textiles, Nagpur", phone: "9823456789", email: "sunita@kpoortex.com", city: "Nagpur", status: "Warm", lastContact: "1 week ago" },
@@ -117,9 +110,7 @@ const DOCS = [
 
 
 
-/* ═══════════════════════════════════════════════════════════════
-   GLOBAL STYLES — v3 REDESIGN
-═══════════════════════════════════════════════════════════════ */
+/* -- GLOBAL STYLES — v3 REDESIGN -- */
 
 const GLOBAL_STYLE = `
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -128,56 +119,56 @@ body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   background: #E8EDF5;
   height: 100vh; overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* -webkit-font-smoothing: antialiased; */
+/* -moz-osx-font-smoothing: grayscale; */
 }
 
 :root {
-  --glass:        rgba(255,255,255,.72);
-  --glass-hover:  rgba(255,255,255,.86);
-  --glass-strong: rgba(255,255,255,.90);
-  --glass-border: rgba(0,0,0,.06);
-  --glass-sep:    rgba(0,0,0,.07);
-  --label:   rgba(0,0,0,.90);
-  --label2:  rgba(0,0,0,.55);
-  --label3:  rgba(0,0,0,.36);
-  --label4:  rgba(0,0,0,.18);
-  --blue:       #007AFF;
-  --blue-l:     rgba(0,122,255,.12);
-  --green:      #34C759;
-  --green-l:    rgba(52,199,89,.13);
-  --red:        #FF3B30;
-  --red-l:      rgba(255,59,48,.11);
-  --orange:     #FF9500;
-  --orange-l:   rgba(255,149,0,.13);
-  --purple:     #AF52DE;
-  --teal:       #5AC8FA;
-  --bg:         transparent;
-  --bg2:        rgba(255,255,255,.80);
-  --bg3:        rgba(255,255,255,.50);
-  --cream:      rgba(255,255,255,.60);
-  --white:      #ffffff;
-  --border:     rgba(0,0,0,.08);
-  --border-l:   rgba(0,0,0,.05);
-  --sep:        rgba(0,0,0,.07);
-  --sep-opaque: rgba(0,0,0,.12);
-  --text-dark:  rgba(0,0,0,.90);
-  --text-mid:   rgba(0,0,0,.55);
-  --text-light: rgba(0,0,0,.36);
-  --fill:       rgba(0,0,0,.05);
-  --fill2:      rgba(0,0,0,.04);
-  --fill3:      rgba(0,0,0,.03);
-  --gold:       #FF9500;
-  --gold-l:     #FFCC00;
-  --gold-p:     rgba(255,149,0,.12);
-  --gold-pp:    rgba(255,149,0,.06);
-  --navy:       #1C1C1E;
-  --radius:    14px;
-  --radius-sm: 10px;
-  --radius-xs: 7px;
-  --shadow-sm:  0 1px 6px rgba(0,0,0,.07), 0 0 0 0.5px rgba(0,0,0,.05);
-  --shadow-md:  0 4px 20px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
-  --shadow-lg:  0 12px 48px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
+/* --glass:        rgba(255,255,255,.72); */
+/* --glass-hover:  rgba(255,255,255,.86); */
+/* --glass-strong: rgba(255,255,255,.90); */
+/* --glass-border: rgba(0,0,0,.06); */
+/* --glass-sep:    rgba(0,0,0,.07); */
+/* --label:   rgba(0,0,0,.90); */
+/* --label2:  rgba(0,0,0,.55); */
+/* --label3:  rgba(0,0,0,.36); */
+/* --label4:  rgba(0,0,0,.18); */
+/* --blue:       #007AFF; */
+/* --blue-l:     rgba(0,122,255,.12); */
+/* --green:      #34C759; */
+/* --green-l:    rgba(52,199,89,.13); */
+/* --red:        #FF3B30; */
+/* --red-l:      rgba(255,59,48,.11); */
+/* --orange:     #FF9500; */
+/* --orange-l:   rgba(255,149,0,.13); */
+/* --purple:     #AF52DE; */
+/* --teal:       #5AC8FA; */
+/* --bg:         transparent; */
+/* --bg2:        rgba(255,255,255,.80); */
+/* --bg3:        rgba(255,255,255,.50); */
+/* --cream:      rgba(255,255,255,.60); */
+/* --white:      #ffffff; */
+/* --border:     rgba(0,0,0,.08); */
+/* --border-l:   rgba(0,0,0,.05); */
+/* --sep:        rgba(0,0,0,.07); */
+/* --sep-opaque: rgba(0,0,0,.12); */
+/* --text-dark:  rgba(0,0,0,.90); */
+/* --text-mid:   rgba(0,0,0,.55); */
+/* --text-light: rgba(0,0,0,.36); */
+/* --fill:       rgba(0,0,0,.05); */
+/* --fill2:      rgba(0,0,0,.04); */
+/* --fill3:      rgba(0,0,0,.03); */
+/* --gold:       #FF9500; */
+/* --gold-l:     #FFCC00; */
+/* --gold-p:     rgba(255,149,0,.12); */
+/* --gold-pp:    rgba(255,149,0,.06); */
+/* --navy:       #1C1C1E; */
+/* --radius:    14px; */
+/* --radius-sm: 10px; */
+/* --radius-xs: 7px; */
+/* --shadow-sm:  0 1px 6px rgba(0,0,0,.07), 0 0 0 0.5px rgba(0,0,0,.05); */
+/* --shadow-md:  0 4px 20px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06); */
+/* --shadow-lg:  0 12px 48px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08); */
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -198,7 +189,7 @@ body, #root {
   width: 222px; min-width: 222px; flex-shrink: 0;
   background: rgba(248,249,252,.88);
   backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
+/* -webkit-backdrop-filter: blur(40px) saturate(180%); */
   border-right: 0.5px solid rgba(0,0,0,.09);
   display: flex; flex-direction: column;
   position: relative; z-index: 2;
@@ -226,7 +217,7 @@ body, #root {
 .topbar {
   background: rgba(255,255,255,.80);
   backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
+/* -webkit-backdrop-filter: blur(40px) saturate(180%); */
   border-bottom: 0.5px solid rgba(0,0,0,.09);
   height: 52px; padding: 0 22px;
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
@@ -240,7 +231,7 @@ body, #root {
 .card {
   background: var(--glass);
   backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+/* -webkit-backdrop-filter: blur(24px) saturate(160%); */
   border-radius: var(--radius);
   border: 0.5px solid rgba(255,255,255,.9);
   box-shadow: var(--shadow-sm);
@@ -254,7 +245,7 @@ body, #root {
 .stat {
   background: var(--glass);
   backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+/* -webkit-backdrop-filter: blur(24px) saturate(160%); */
   border-radius: var(--radius);
   border: 0.5px solid rgba(255,255,255,.9);
   box-shadow: var(--shadow-sm);
@@ -402,9 +393,7 @@ const STATUS_COLOR = {
 };
 
 
-/* ═══════════════════════════════════════════════════════════════
-   PRINT TEMPLATES — v3 REDESIGN
-═══════════════════════════════════════════════════════════════ */
+/* -- PRINT TEMPLATES — v3 REDESIGN -- */
 function HalfSheet({ data, type }) {
   const { recipient, dispatchInfo, items, sender } = data;
   const totalQty = items.reduce((acc, i) => acc + parseInt(i.qty || 0), 0);
@@ -415,7 +404,7 @@ function HalfSheet({ data, type }) {
     <div style={{ fontFamily:"'Arial',sans-serif", height:"100%", display:"flex",
       flexDirection:"column", boxSizing:"border-box", background:"white", overflow:"hidden" }}>
 
-      {/* ── HEADER — logo + name only, no dark background ── */}
+      {/* -- HEADER — logo + name only, no dark background -- */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
         padding:"8px 14px 8px", borderBottom:"2px solid #111" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -431,13 +420,13 @@ function HalfSheet({ data, type }) {
           </div>
         </div>
         <div style={{ fontSize:8, fontWeight:900, color:"#111", padding:"4px 12px",
-          border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
+//border:"1.5px solid #111", borderRadius:3, letterSpacing:"0.16em",
           textTransform:"uppercase", whiteSpace:"nowrap" }}>
           {type}
         </div>
       </div>
 
-      {/* ── MAIN BODY ── */}
+      {/* -- MAIN BODY -- */}
       <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
         {/* LEFT — SHIP TO */}
@@ -498,14 +487,14 @@ function HalfSheet({ data, type }) {
             <div style={{ textAlign:"center" }}>
               <div style={{ width:80, borderBottom:"1px solid #888", marginBottom:3 }} />
               <div style={{ fontSize:6.5, textTransform:"uppercase", letterSpacing:"0.1em", color:"#888", fontWeight:700 }}>
-                Receiver's Signature
+/* Receiver's Signature */
               </div>
             </div>
             <div style={{ textAlign:"center" }}>
               <div style={{ fontSize:7, fontWeight:700, color:"#666", marginBottom:12 }}>For {sender.name}</div>
               <div style={{ width:80, borderBottom:"1px solid #888", marginBottom:3 }} />
               <div style={{ fontSize:6.5, textTransform:"uppercase", letterSpacing:"0.1em", color:"#888", fontWeight:700 }}>
-                Authorised Signatory
+/* Authorised Signatory */
               </div>
             </div>
           </div>
@@ -524,7 +513,7 @@ function HalfSheet({ data, type }) {
           <div style={{ border:"1.5px solid #ccc", borderRadius:5, overflow:"hidden", marginBottom:10 }}>
             <div style={{ background:"#f5f5f5", padding:"4px 10px", borderBottom:"1px solid #ddd" }}>
               <div style={{ fontSize:7.5, fontWeight:900, color:"#333", letterSpacing:"0.12em", textTransform:"uppercase" }}>
-                Dispatch Details
+/* Dispatch Details */
               </div>
             </div>
             {[
@@ -535,7 +524,7 @@ function HalfSheet({ data, type }) {
               ["Value", `₹ ${dispatchInfo.declaredValue || "0"}`],
             ].map(([k, v], idx, arr) => (
               <div key={k} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
-                padding:"4px 10px", borderBottom: idx < arr.length-1 ? "1px solid #eee" : "none",
+//padding:"4px 10px", borderBottom: idx < arr.length-1 ? "1px solid #eee" : "none",
                 background: idx%2===0 ? "white" : "#fafafa" }}>
                 <span style={{ fontSize:7.5, color:"#888", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", whiteSpace:"nowrap" }}>{k}</span>
                 <span style={{ fontSize:8.5, fontWeight:800, color:"#111", textAlign:"right", maxWidth:"58%", wordBreak:"break-word" }}>{v}</span>
@@ -587,12 +576,12 @@ function PrintTemplate({ data }) {
   return (
     <div style={{ width: "210mm", height: "296mm", background: "white", display: "flex", flexDirection: "column", fontFamily: "Arial, sans-serif", overflow: "hidden" }}>
 
-      {/* ── COURIER COPY (top half — paste on parcel) ── */}
+      {/* -- COURIER COPY (top half — paste on parcel) -- */}
       <div style={{ flex: 1, overflow: "hidden" }}>
         <HalfSheet data={data} type="COURIER COPY" />
       </div>
 
-      {/* ── CUT LINE ── */}
+      {/* -- CUT LINE -- */}
       <div style={{ flexShrink: 0, height: 22, display: "flex", alignItems: "center", background: "#F8FAFC" }}>
         <div style={{ flex: 1, borderTop: "2px dashed #94A3B8" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px", fontSize: 8, color: "#64748B", fontWeight: 900, letterSpacing: "0.16em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
@@ -603,7 +592,7 @@ function PrintTemplate({ data }) {
         <div style={{ flex: 1, borderTop: "2px dashed #94A3B8" }} />
       </div>
 
-      {/* ── OFFICE COPY (bottom half — keep for records) ── */}
+      {/* -- OFFICE COPY (bottom half — keep for records) -- */}
       <div style={{ flex: 1, overflow: "hidden" }}>
         <HalfSheet data={data} type="OFFICE COPY" />
       </div>
@@ -616,9 +605,9 @@ function EnvelopeTemplate({ data }) {
   const { recipient } = data;
   return (
     <div id="doc-preview" style={{
-      width:"9in", height:"4.5in", background:"white", position:"relative",
-      fontFamily:"'Arial',sans-serif", boxSizing:"border-box", overflow:"hidden",
-      display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0.6in 0.5in 0.6in 0"
+//width:"9in", height:"4.5in", background:"white", position:"relative",
+//fontFamily:"'Arial',sans-serif", boxSizing:"border-box", overflow:"hidden",
+//display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0.6in 0.5in 0.6in 0"
     }}>
       {/* ADDRESS BLOCK — right-aligned, big clear type for window envelope */}
       <div style={{ width:"3.8in", textAlign:"left" }}>
@@ -640,9 +629,7 @@ function EnvelopeTemplate({ data }) {
     </div>
   );
 }
-/* ═══════════════════════════════════════════════════════════════
-   PRINT PREVIEW OVERLAY
-═══════════════════════════════════════════════════════════════ */
+/* -- PRINT PREVIEW OVERLAY -- */
 function PrintOverlay({ printData, previewMode, onClose }) {
   const [isPdfReady, setIsPdfReady] = useState(false);
   const [notif, setNotif] = useState(null);
@@ -697,9 +684,7 @@ function PrintOverlay({ printData, previewMode, onClose }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   DISPATCH MODULE (full implementation)
-═══════════════════════════════════════════════════════════════ */
+/* -- DISPATCH MODULE (full implementation) -- */
 function DispatchModule({ showNotif }) {
   const [dispView, setDispView] = useState("form");
   const [history, setHistory] = useState([]);
@@ -812,11 +797,11 @@ function DispatchModule({ showNotif }) {
       if (sheetWebhookUrl) {
         const sheetPayload = {
           date: new Date(dispatchInfo.date).toLocaleDateString("en-IN"),
-          contactName: recipient.name, companyName: recipient.company,
-          address: fullAddress, city: recipient.city,
-          courier: dispatchInfo.courierName, tracking: dispatchInfo.trackingNo,
+//contactName: recipient.name, companyName: recipient.company,
+//address: fullAddress, city: recipient.city,
+//courier: dispatchInfo.courierName, tracking: dispatchInfo.trackingNo,
           items: items.map(i => `${i.qty}x ${i.type}`).join(", "),
-          value: dispatchInfo.declaredValue, weight: weightString, phone: recipient.phone
+//value: dispatchInfo.declaredValue, weight: weightString, phone: recipient.phone
         };
         fetch(sheetWebhookUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sheetPayload) }).catch(() => {});
       }
@@ -1150,9 +1135,7 @@ function DispatchModule({ showNotif }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   OTHER MODULES
-═══════════════════════════════════════════════════════════════ */
+/* -- OTHER MODULES -- */
 function StatusTag({ s }) {
   const m = { Hot: "tag-red", Warm: "tag-gold", New: "tag-blue", Cold: "tag-gray" };
   return <span className={`tag ${m[s] || "tag-gray"}`}>{s}</span>;
@@ -1217,22 +1200,22 @@ function HomeModule({ setActive }) {
 
   return (
     <div>
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <div className="sh" style={{ marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "var(--label)", letterSpacing: "-.04em" }}>
             {greeting} 👋
           </div>
           <div style={{ fontSize: 13, color: "var(--label3)", marginTop: 3 }}>
-            Kshirsagar Hometextiles · Here's what's happening
+/* Kshirsagar Hometextiles · Here's what's happening */
           </div>
         </div>
         <button className="btn btn-gold btn-sm" onClick={() => setActive("dispatch")}>
-          + New Dispatch
+//+ New Dispatch
         </button>
       </div>
 
-      {/* ── Stat row ── */}
+      {/* -- Stat row -- */}
       <div className="g4 mb4">
         {stats.map(s => (
           <div key={s.label} className={`stat ${s.c}`} onClick={() => setActive(s.target)}>
@@ -1243,7 +1226,7 @@ function HomeModule({ setActive }) {
         ))}
       </div>
 
-      {/* ── 2-col: activity + quick actions ── */}
+      {/* -- 2-col: activity + quick actions -- */}
       <div className="g2" style={{ alignItems: "start" }}>
 
         {/* Live Activity Feed */}
@@ -1255,7 +1238,7 @@ function HomeModule({ setActive }) {
             </div>
             <div style={{
               width: 8, height: 8, borderRadius: "50%", background: "var(--green)",
-              animation: "livepulse 2s infinite"
+//animation: "livepulse 2s infinite"
             }} />
           </div>
 
@@ -1265,7 +1248,7 @@ function HomeModule({ setActive }) {
           <div style={{ maxHeight: 420, overflowY: "auto" }}>
             {activity.length === 0 ? (
               <div style={{ padding: "32px 18px", textAlign: "center", color: "var(--label3)", fontSize: 13 }}>
-                No activity yet. Start dispatching, uploading products, or printing quotations — everything will appear here.
+//No activity yet. Start dispatching, uploading products, or printing quotations — everything will appear here.
               </div>
             ) : activity.map((ev, i) => {
               const meta = modMeta[ev.module] || { label: ev.module, color: "var(--label3)" };
@@ -1274,22 +1257,22 @@ function HomeModule({ setActive }) {
                   key={ev.id || i}
                   onClick={() => ev.module && setActive(ev.module)}
                   style={{
-                    display: "flex", alignItems: "flex-start", gap: 12,
-                    padding: "11px 18px",
+//display: "flex", alignItems: "flex-start", gap: 12,
+//padding: "11px 18px",
                     borderBottom: i < activity.length - 1 ? "0.5px solid rgba(0,0,0,.06)" : "none",
-                    cursor: ev.module ? "pointer" : "default",
-                    transition: "background .12s",
+//cursor: ev.module ? "pointer" : "default",
+//transition: "background .12s",
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = "rgba(0,122,255,.04)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   {/* Icon bubble */}
                   <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+//width: 36, height: 36, borderRadius: 10, flexShrink: 0,
                     background: "rgba(0,0,0,.05)",
                     border: "0.5px solid rgba(0,0,0,.08)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 16
+//display: "flex", alignItems: "center", justifyContent: "center",
+//fontSize: 16
                   }}>{typeof ev.icon === "string" ? ev.icon : "📋"}</div>
 
                   {/* Text */}
@@ -1306,9 +1289,9 @@ function HomeModule({ setActive }) {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     {ev.module && (
                       <span style={{
-                        fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
-                        background: meta.color + "22",
-                        color: meta.color,
+//fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
+//background: meta.color + "22",
+//color: meta.color,
                         border: `1px solid ${meta.color}33`,
                       }}>{meta.label}</span>
                     )}
@@ -1334,9 +1317,9 @@ function HomeModule({ setActive }) {
                   style={{
                     background: "rgba(0,0,0,.04)",
                     border: "0.5px solid rgba(0,0,0,.07)",
-                    borderRadius: 12, padding: "14px 10px",
-                    cursor: "pointer", textAlign: "center",
-                    transition: "all .15s",
+//borderRadius: 12, padding: "14px 10px",
+//cursor: "pointer", textAlign: "center",
+//transition: "all .15s",
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,122,255,.08)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,.04)"; e.currentTarget.style.transform = ""; }}
@@ -1351,7 +1334,7 @@ function HomeModule({ setActive }) {
           {/* Today's summary pill */}
           <div className="card" style={{ padding: "14px 16px" }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--label3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>
-              Today's Summary
+/* Today's Summary */
             </div>
             {[
               { label: "Events logged", value: activity.filter(e => Date.now() - (e.time||e.ts) < 86400000).length, color: "var(--blue)" },
@@ -1458,7 +1441,7 @@ function ProductsModule() {
         r.readAsDataURL(file);
       });
       const resp = await fetch(driveUrl, {
-        method: "POST",
+//method: "POST",
         body: JSON.stringify({ base64, mimeType: file.type, filename: file.name, category: cat })
       });
       const data = await resp.json();
@@ -1476,7 +1459,7 @@ function ProductsModule() {
       // Upload a tiny placeholder to create the folder, then delete it client-side
       const placeholder = btoa("KHT");
       const resp = await fetch(driveUrl, {
-        method: "POST",
+//method: "POST",
         body: JSON.stringify({ base64: placeholder, mimeType: "image/png", filename: ".keep", category: newCatName.trim() })
       });
       const data = await resp.json();
@@ -1580,7 +1563,7 @@ function ProductsModule() {
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
           <div style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>Connect Google Drive</div>
           <div className="text-sm text-lt" style={{ maxWidth: 420, margin: "0 auto 20px" }}>
-            Deploy the Products Drive Apps Script, paste the URL here. Drive folders become product categories automatically.
+//Deploy the Products Drive Apps Script, paste the URL here. Drive folders become product categories automatically.
           </div>
           <button className="btn btn-gold" onClick={() => setShowSetup(true)}>Connect Now →</button>
         </div>
@@ -1588,7 +1571,7 @@ function ProductsModule() {
 
       {driveUrl && (
         <>
-          {/* ── FOLDER TILES ROW ── */}
+          {/* -- FOLDER TILES ROW -- */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: ".12em" }}>Categories</div>
@@ -1601,8 +1584,8 @@ function ProductsModule() {
               <div
                 onClick={() => setFilter("All")}
                 style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+//display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+//width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
                   border: filter === "All" ? "2px solid var(--gold)" : "1.5px solid var(--border)",
                   background: filter === "All" ? "var(--gold-p)" : "var(--white)",
                   transition: "all .15s", boxShadow: filter === "All" ? "0 2px 8px rgba(196,145,58,.2)" : "var(--shadow-sm)"
@@ -1619,8 +1602,8 @@ function ProductsModule() {
                   key={cat}
                   onClick={() => { setFilter(cat); setUploadCat(cat); }}
                   style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+//display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+//width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
                     border: filter === cat ? "2px solid var(--gold)" : "1.5px solid var(--border)",
                     background: filter === cat ? "var(--gold-p)" : "var(--white)",
                     transition: "all .15s", boxShadow: filter === cat ? "0 2px 8px rgba(196,145,58,.2)" : "var(--shadow-sm)"
@@ -1636,10 +1619,10 @@ function ProductsModule() {
               <div
                 onClick={() => setShowAddCat(true)}
                 style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
+//display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+//width: 90, padding: "12px 8px", borderRadius: 10, cursor: "pointer",
                   border: "1.5px dashed var(--border)",
-                  background: "transparent", transition: "all .15s",
+//background: "transparent", transition: "all .15s",
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--gold)"; e.currentTarget.style.background = "var(--gold-pp)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "transparent"; }}
@@ -1689,13 +1672,13 @@ function ProductsModule() {
                               setShareToast(`${multiSel.length} links copied!`);
                               setTimeout(() => setShareToast(null), 2500);
                             }}>
-                            📋 Copy All Links
+//📋 Copy All Links
                           </button>
                         </>
                       )}
                       <button className="btn btn-out btn-sm" style={{ color: "rgba(255,255,255,.6)", borderColor: "rgba(255,255,255,.2)" }}
                         onClick={() => { setMultiMode(false); setMultiSel([]); }}>
-                        ✕ Cancel
+//✕ Cancel
                       </button>
                     </div>
                   )}
@@ -1712,18 +1695,18 @@ function ProductsModule() {
                           onContextMenu={e => { e.preventDefault(); setMultiMode(true); toggleMultiSel(img); setSelected(null); }}
                           style={{
                             border: isMultiSelected ? "2.5px solid var(--gold)" : isSingleSelected ? "2px solid var(--gold)" : undefined,
-                            position: "relative",
+//position: "relative",
                             outline: isMultiSelected ? "3px solid rgba(196,145,58,.25)" : "none",
-                            transition: "all .15s"
+//transition: "all .15s"
                           }}>
                           {/* Multi-select checkbox */}
                           {multiMode && (
                             <div style={{
-                              position: "absolute", top: 7, right: 7, zIndex: 2,
-                              width: 20, height: 20, borderRadius: "50%",
+//position: "absolute", top: 7, right: 7, zIndex: 2,
+//width: 20, height: 20, borderRadius: "50%",
                               background: isMultiSelected ? "var(--gold)" : "rgba(255,255,255,.9)",
                               border: isMultiSelected ? "2px solid var(--gold)" : "2px solid #ccc",
-                              display: "flex", alignItems: "center", justifyContent: "center",
+//display: "flex", alignItems: "center", justifyContent: "center",
                               fontSize: 11, fontWeight: 900, color: "var(--navy)",
                               boxShadow: "0 1px 4px rgba(0,0,0,.2)"
                             }}>
@@ -1821,7 +1804,7 @@ function ProductsModule() {
               value={newCatName}
               onChange={e => setNewCatName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && createCategory()}
-              autoFocus
+//autoFocus
             />
             <div className="flex gap3">
               <button className="btn btn-gold btn-full" onClick={createCategory} disabled={!newCatName.trim() || creatingCat}>
@@ -2096,12 +2079,8 @@ function DocumentsModule() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ROOT APP
-═══════════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════════
-   LOGIN
-═══════════════════════════════════════════════════════════════ */
+/* -- ROOT APP -- */
+/* -- LOGIN -- */
 const LOGIN_PASSWORD = "kht2025";
 
 function LoginScreen({ onLogin }) {
@@ -2133,7 +2112,7 @@ function LoginScreen({ onLogin }) {
         }
         .lw::before{
           content:'';position:absolute;inset:0;pointer-events:none;
-          background:
+//background:
             radial-gradient(ellipse 600px 400px at 20% 30%,rgba(0,122,255,.08) 0%,transparent 70%),
             radial-gradient(ellipse 500px 350px at 80% 70%,rgba(88,86,214,.06) 0%,transparent 65%),
             radial-gradient(ellipse 350px 250px at 60% 8%, rgba(52,199,89,.04) 0%,transparent 60%);
@@ -2141,7 +2120,7 @@ function LoginScreen({ onLogin }) {
         .lb{
           background:rgba(255,255,255,.82);
           backdrop-filter:blur(48px) saturate(180%);
-          -webkit-backdrop-filter:blur(48px) saturate(180%);
+/* -webkit-backdrop-filter:blur(48px) saturate(180%); */
           border:0.5px solid rgba(0,0,0,.08);
           border-radius:24px;padding:44px 40px;
           width:100%;max-width:380px;
@@ -2192,7 +2171,7 @@ function LoginScreen({ onLogin }) {
               value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSubmit()}
-              autoFocus
+//autoFocus
             />
             {error && <div className="lerr">Incorrect password. Try again.</div>}
           </div>
@@ -2204,31 +2183,27 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   PICTURE QUOTATION MODULE
-   Select images → build itemised quotation with product photos
-═══════════════════════════════════════════════════════════════ */
+/* PICTURE QUOTATION MODULE */
+/* Select images → build itemised quotation with product photos */
 
-/* ═══════════════════════════════════════════════════════════════
-   PICTURE QUOTATION MODULE
-   - Each product = one row: image (left) + name/size/weight/price (right)
-   - Client: type freely OR pick from dispatch contacts
-   - Print: pure static HTML table with embedded base64 images
-             Tables + @page margins = 100% reliable A4, never cuts
-═══════════════════════════════════════════════════════════════ */
+/* PICTURE QUOTATION MODULE */
+/* - Each product = one row: image (left) + name/size/weight/price (right) */
+/* - Client: type freely OR pick from dispatch contacts */
+/* - Print: pure static HTML table with embedded base64 images */
+/* Tables + @page margins = 100% reliable A4, never cuts */
 
-/* ── Data shape for one product row ── */
+/* -- Data shape for one product row -- */
 const EMPTY_ROW = () => ({
   id: Math.random().toString(36).slice(2, 9),
-  dataUrl: null,      // base64 image — always dataUrl so print never needs fetch
+//dataUrl: null,      // base64 image — always dataUrl so print never needs fetch
   imgName: "",
-  name:    "",        // product name / quality
-  size:    "",        // e.g. 60×90 inch
-  weight:  "",        // e.g. 600 GSM / 1200 gms
-  price:   "",        // unit price per piece
+//name:    "",        // product name / quality
+//size:    "",        // e.g. 60×90 inch
+//weight:  "",        // e.g. 600 GSM / 1200 gms
+//price:   "",        // unit price per piece
 });
 
-/* ── Drive Picker — supports single-row OR bulk multi-select ── */
+/* -- Drive Picker — supports single-row OR bulk multi-select -- */
 function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMode = false }) {
   const [imgs, setImgs]     = useState([]);
   const [cats, setCats]     = useState([]);
@@ -2293,7 +2268,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
   const ov = { position:"fixed", inset:0, background:"rgba(0,0,0,.45)", backdropFilter:"blur(4px)",
     zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center" };
   const box = { background:"rgba(255,255,255,.96)", backdropFilter:"blur(20px)",
-    borderRadius:18, width:680, maxWidth:"96vw", maxHeight:"86vh",
+//borderRadius:18, width:680, maxWidth:"96vw", maxHeight:"86vh",
     display:"flex", flexDirection:"column", boxShadow:"0 24px 80px rgba(0,0,0,.22)",
     border:"0.5px solid rgba(0,0,0,.08)" };
   const isSelected = (img) => multiMode ? !!multiSel.find(x => x.id === img.id) : sel?.id === img.id;
@@ -2320,7 +2295,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
             {cats.map(c => (
               <button key={c} onClick={() => setSelCat(c)}
                 style={{ padding:"4px 12px", borderRadius:20, border:"1.5px solid",
-                  fontSize:11, fontWeight:600, cursor:"pointer",
+//fontSize:11, fontWeight:600, cursor:"pointer",
                   borderColor: selCat===c ? "var(--blue)" : "rgba(0,0,0,.12)",
                   background: selCat===c ? "var(--blue)" : "transparent",
                   color: selCat===c ? "#fff" : "var(--label2)" }}>
@@ -2354,7 +2329,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
                   <img src={img.thumb || img.url} alt={img.name}
                     style={{ width:"100%", aspectRatio:"1", objectFit:"cover", display:"block" }} />
                   <div style={{ padding:"5px 7px", fontSize:9, color:"var(--label2)",
-                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+//whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
                     background:"rgba(255,255,255,.9)" }}>
                     {img.name}
                   </div>
@@ -2373,7 +2348,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
             <button onClick={onClose}
               style={{ padding:"8px 20px", borderRadius:8, border:"1px solid rgba(0,0,0,.12)",
                 background:"transparent", cursor:"pointer", fontWeight:600, fontSize:13, color:"var(--label2)" }}>
-              Cancel
+/* Cancel */
             </button>
             {multiMode ? (
               <button onClick={confirmMulti} disabled={!multiSel.length || fetching}
@@ -2399,7 +2374,7 @@ function QuoteDrivePickerModal({ driveUrl, onPick, onPickMulti, onClose, multiMo
   );
 }
 
-/* ── One product row in the editor ── */
+/* -- One product row in the editor -- */
 function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, driveUrl }) {
   const fileRef = useRef();
   const [showDrive, setShowDrive] = useState(false);
@@ -2415,7 +2390,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
       {hint && <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:".08em", marginBottom:2 }}>{hint}</div>}
       <input value={row[key]} onChange={e => onChange({ [key]: e.target.value })} placeholder={placeholder}
         style={{ width:"100%", border:"none", borderBottom:"1px solid #E8E4DF", padding:"4px 2px", fontSize:13,
-          outline:"none", background:"transparent", fontFamily:"inherit",
+//outline:"none", background:"transparent", fontFamily:"inherit",
           fontWeight: key==="name" ? 700 : 400, color: key==="name" ? "#0D1B2A" : "#555" }} />
     </div>
   );
@@ -2440,7 +2415,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
             <img src={row.dataUrl} alt=""
               style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
             <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.45)",
-              display:"flex", alignItems:"center", justifyContent:"center",
+//display:"flex", alignItems:"center", justifyContent:"center",
               opacity:0, transition:".15s" }}
               onMouseEnter={e => e.currentTarget.style.opacity = 1}
               onMouseLeave={e => e.currentTarget.style.opacity = 0}>
@@ -2449,7 +2424,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
           </div>
         ) : (
           <div style={{ width:110, height:110, borderRadius:8, border:"2px dashed #C4913A",
-            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+//display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
             cursor:"pointer", gap:4, background:"#FFFBF5" }}
             onClick={() => fileRef.current?.click()}>
             <span style={{ fontSize:26 }}>📷</span>
@@ -2459,7 +2434,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
         <button onClick={() => setShowDrive(true)}
           style={{ fontSize:10, padding:"3px 10px", border:"1.5px solid #C4913A", borderRadius:6,
             background:"#fff", color:"#C4913A", cursor:"pointer", fontWeight:700, width:"100%" }}>
-          📁 Drive
+//📁 Drive
         </button>
         <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }}
           onChange={e => e.target.files[0] && loadFile(e.target.files[0])} />
@@ -2502,7 +2477,7 @@ function QuoteRow({ row, idx, total, onChange, onRemove, onMoveUp, onMoveDown, d
   );
 }
 
-/* ══════════════════ MAIN MODULE ══════════════════ */
+/* ================== MAIN MODULE ================== */
 function PictureQuotationModule() {
   const driveUrl = localStorage.getItem("kht_products_drive") || DEFAULT_PRODUCTS_DRIVE_URL;
 
@@ -2511,9 +2486,9 @@ function PictureQuotationModule() {
   const [meta, setMeta] = useState({
     ref:      `KHT/${new Date().getFullYear()}/${String(Math.floor(Math.random()*900)+100)}`,
     date:     new Date().toISOString().slice(0,10),
-    validity: "15 days",
-    notes:    "Prices are ex-factory Solapur. GST @5% applicable. Minimum order quantities apply.",
-    showGst:  true,
+//validity: "15 days",
+//notes:    "Prices are ex-factory Solapur. GST @5% applicable. Minimum order quantities apply.",
+//showGst:  true,
     gstRate:  5,
   });
   const [contacts, setContacts] = useState([]);
@@ -2528,7 +2503,7 @@ function PictureQuotationModule() {
   const handleBulkPick = (pickedImgs) => {
     const newRows = pickedImgs.map(img => ({
       ...EMPTY_ROW(),
-      dataUrl: img.dataUrl,
+//dataUrl: img.dataUrl,
       imgName: img.imgName,
       name: img.imgName.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "), // auto-name from filename
     }));
@@ -2580,13 +2555,13 @@ function PictureQuotationModule() {
   const gstAmt     = meta.showGst ? Math.round(priceTotal * meta.gstRate / 100) : 0;
   const grandTotal = priceTotal + gstAmt;
 
-  /* ─────────────────────────────────────────────────────────────
+  /* -------------------------------------------------------------
      PRINT / PDF
-     Strategy: pure static HTML table, images as embedded base64.
-     Tables are the ONLY 100% reliable format for A4 print —
-     no flex, no grid, no transform, no canvas. Just HTML 4 table
-     layout that every browser print engine handles identically.
-  ───────────────────────────────────────────────────────────── */
+//Strategy: pure static HTML table, images as embedded base64.
+//Tables are the ONLY 100% reliable format for A4 print —
+//no flex, no grid, no transform, no canvas. Just HTML 4 table
+//layout that every browser print engine handles identically.
+/* ------------------------------------------------------------- */
   const printQuotation = () => {
     if (!rows.some(r => r.name || r.dataUrl)) {
       showToast("Add at least one product before printing.");
@@ -2675,7 +2650,7 @@ function PictureQuotationModule() {
       font-family:'Plus Jakarta Sans',Arial,sans-serif;
       font-size:13px;
       color:#0D1B2A;
-      -webkit-print-color-adjust:exact;
+/* -webkit-print-color-adjust:exact; */
       print-color-adjust:exact;
       color-adjust:exact;
     }
@@ -2685,7 +2660,7 @@ function PictureQuotationModule() {
 </head>
 <body>
 
-  <!-- ═══ COMPANY HEADER ═══ -->
+  <!-- === COMPANY HEADER === -->
   <table width="100%" style="margin-bottom:0;background:#0D1B2A;border-radius:8px 8px 0 0;">
     <tr>
       <td style="padding:14px 18px;vertical-align:middle;">
@@ -2712,7 +2687,7 @@ function PictureQuotationModule() {
   ${clientHtml}
   ${!clientHtml ? '<div style="height:14px"></div>' : ''}
 
-  <!-- ═══ PRODUCTS TABLE ═══ -->
+  <!-- === PRODUCTS TABLE === -->
   <table width="100%" style="margin-bottom:0;border:1px solid #E8E4DF;">
     <thead>
       <tr style="background:#0D1B2A;">
@@ -2729,7 +2704,7 @@ function PictureQuotationModule() {
       ${gstRowHtml}
       <tr style="background:#0D1B2A;">
         <td colspan="3" style="padding:12px 18px;text-align:right;border:1px solid #1a2f44;color:#C4913A;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">
-          Grand Total
+/* Grand Total */
         </td>
         <td style="padding:12px 16px;text-align:center;border:1px solid #1a2f44;">
           <div style="font-size:22px;font-weight:900;color:#fff;font-family:'Fraunces',Georgia,serif;">
@@ -2740,7 +2715,7 @@ function PictureQuotationModule() {
     </tfoot>
   </table>
 
-  <!-- ═══ TERMS ═══ -->
+  <!-- === TERMS === -->
   ${meta.notes ? `
   <table width="100%" style="margin-top:0;">
     <tr>
@@ -2751,7 +2726,7 @@ function PictureQuotationModule() {
     </tr>
   </table>` : ""}
 
-  <!-- ═══ SIGN-OFF ═══ -->
+  <!-- === SIGN-OFF === -->
   <table width="100%" style="margin-top:22px;border-top:1px solid #E3DDD4;padding-top:14px;">
     <tr>
       <td style="vertical-align:middle;">
@@ -2780,7 +2755,7 @@ function PictureQuotationModule() {
     setTimeout(() => { win.focus(); win.print(); }, 800);
   };
 
-  /* ═══ EDITOR UI ═══ */
+  /* === EDITOR UI === */
   const filteredContacts = contacts.filter(c =>
     !contactSearch || c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
     (c.company||"").toLowerCase().includes(contactSearch.toLowerCase())
@@ -2796,10 +2771,10 @@ function PictureQuotationModule() {
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <button className="btn btn-out" onClick={() => setShowBulkDrive(true)} style={{ fontSize:13, padding:"9px 18px", gap:6 }}>
-            📁 Add from Drive
+//📁 Add from Drive
           </button>
           <button className="btn btn-gold" onClick={printQuotation} style={{ fontSize:14, padding:"10px 22px", gap:6 }}>
-            🖨️ Print / Save PDF
+//🖨️ Print / Save PDF
           </button>
         </div>
       </div>
@@ -2817,7 +2792,7 @@ function PictureQuotationModule() {
 
       {toast && (
         <div style={{ position:"fixed", bottom:32, left:"50%", transform:"translateX(-50%)",
-          background:"#0D1B2A", color:"#fff", padding:"12px 24px", borderRadius:12,
+//background:"#0D1B2A", color:"#fff", padding:"12px 24px", borderRadius:12,
           fontSize:13, fontWeight:600, zIndex:9999, boxShadow:"0 8px 32px rgba(0,0,0,.3)", whiteSpace:"nowrap" }}>
           {toast}
         </div>
@@ -2825,19 +2800,19 @@ function PictureQuotationModule() {
 
       <div style={{ display:"grid", gridTemplateColumns:"1fr 290px", gap:18, padding:"16px 0" }}>
 
-        {/* ── LEFT: client + rows ── */}
+        {/* -- LEFT: client + rows -- */}
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
           {/* Client card */}
           <div className="card" style={{ padding:16 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
               <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A" }}>
-                Prepared For
+/* Prepared For */
               </div>
               {contacts.length > 0 && (
                 <button onClick={() => setShowContacts(s => !s)}
                   style={{ fontSize:11, padding:"4px 12px", border:"1.5px solid #C4913A", borderRadius:20,
-                    background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#C4913A",
+//background: showContacts ? "#C4913A" : "#fff", color: showContacts ? "#fff" : "#C4913A",
                     cursor:"pointer", fontWeight:700 }}>
                   👤 Pick Contact ({contacts.length})
                 </button>
@@ -2920,12 +2895,12 @@ function PictureQuotationModule() {
           </div>
         </div>
 
-        {/* ── RIGHT: meta + totals ── */}
+        {/* -- RIGHT: meta + totals -- */}
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
           <div className="card" style={{ padding:16 }}>
             <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A", marginBottom:12 }}>
-              Quotation Details
+/* Quotation Details */
             </div>
             {[["ref","Reference No."],["date","Date"],["validity","Valid For"]].map(([k,lbl]) => (
               <div key={k} style={{ marginBottom:10 }}>
@@ -2946,7 +2921,7 @@ function PictureQuotationModule() {
 
           <div className="card" style={{ padding:16 }}>
             <div style={{ fontSize:11, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em", color:"#C4913A", marginBottom:14 }}>
-              Summary
+/* Summary */
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
               <span style={{ color:"#666" }}>Sum of prices</span>
@@ -2971,7 +2946,7 @@ function PictureQuotationModule() {
             </div>
             <button className="btn btn-gold" onClick={printQuotation}
               style={{ width:"100%", marginTop:16, fontSize:14, padding:12, gap:6 }}>
-              🖨️ Print / Save as PDF
+//🖨️ Print / Save as PDF
             </button>
           </div>
 
@@ -2981,9 +2956,7 @@ function PictureQuotationModule() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   EXPORTS MODULE  — Customs Database · 4,665 importers
-═══════════════════════════════════════════════════════════════ */
+/* -- EXPORTS MODULE  — Customs Database · 4,665 importers -- */
 function ExportsModule() {
   const [tab, setTab]             = useState("database");
   const [allImporters, setAllImporters] = useState([]);  // master list
@@ -3002,7 +2975,7 @@ function ExportsModule() {
   const apiKey = () => localStorage.getItem("kht_anthropic_key") || "";
   const showN = (m) => { setNotifMsg(m); setTimeout(() => setNotifMsg(null), 3200); };
 
-  /* ── Filters ── */
+  /* -- Filters -- */
   const [fSearch,  setFSearch]    = useState("");
   const [fCountry, setFCountry]   = useState("All");
   const [fStatus,  setFStatus]    = useState("All");
@@ -3012,14 +2985,14 @@ function ExportsModule() {
   const [page,     setPage]       = useState(1);
   const PAGE_SIZE = 50;
 
-  /* ── Compose ── */
+  /* -- Compose -- */
   const [selIds,       setSelIds]       = useState([]);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody,    setEmailBody]    = useState("");
   const [aiLoading,    setAiLoading]    = useState(false);
   const [sending,      setSending]      = useState(false);
 
-  /* ── Load importers.json (deployed alongside App.jsx) ── */
+  /* -- Load importers.json (deployed alongside App.jsx) -- */
   const loadData = async () => {
     // Check cache first
     try {
@@ -3065,7 +3038,7 @@ function ExportsModule() {
     setAllImporters(prev => prev.map(x => x.id === id ? {...x, ...patch} : x));
   };
 
-  /* ── Derived / filtered ── */
+  /* -- Derived / filtered -- */
   const countries = ["All", ...Array.from(new Set(allImporters.map(x => x.country).filter(Boolean))).sort()];
   const hsCodes   = ["All", "6302 - Household Linen", "6304 - Other Furnishing Articles"];
   const allMonths = ["All", "Apr 2023", "May 2023", "Jul 2023", "Sep 2023", "Nov 2023", "Dec 2023"];
@@ -3098,24 +3071,24 @@ function ExportsModule() {
 
   /* Status stats */
   const stats = {
-    total:       importers.length,
+//total:       importers.length,
     new:         importers.filter(x => !x.status || x.status === "New").length,
     contacted:   importers.filter(x => ["Contacted","Interested","Negotiating","Sample Sent"].includes(x.status)).length,
     interested:  importers.filter(x => ["Interested","Negotiating"].includes(x.status)).length,
     converted:   importers.filter(x => x.status === "Converted").length,
   };
 
-  /* ── Push to Google Sheet ── */
+  /* -- Push to Google Sheet -- */
   const pushToSheet = async (rows) => {
     if (!webhookUrl) { showN("Set webhook URL in Settings first."); return; }
     const payload = rows.map(x => ({
-      id: x.id, company: x.company, country: x.country,
-      contact: x.contact||"", email: x.email||"", phone: x.phone||"",
-      product: x.products||"", city: x.port||"",
+//id: x.id, company: x.company, country: x.country,
+//contact: x.contact||"", email: x.email||"", phone: x.phone||"",
+//product: x.products||"", city: x.port||"",
       volume: `${x.ships||0} shipments / $${(x.fob||0).toLocaleString()} FOB`,
-      status: x.status||"New",
+//status: x.status||"New",
       notes: `HS: ${x.hs||x.hs_codes||""} | Source: ${x.source||"Customs Apr 2023"}`,
-      source: x.source||"Customs Apr 2023",
+//source: x.source||"Customs Apr 2023",
     }));
     try {
       await fetch(webhookUrl, { method:"POST", mode:"no-cors",
@@ -3127,7 +3100,7 @@ function ExportsModule() {
     } catch { showN("Push failed — check webhook URL."); }
   };
 
-  /* ── AI draft ── */
+  /* -- AI draft -- */
   const draftEmail = async () => {
     const key = apiKey();
     if (!key) { showN("Add Anthropic API key in Dispatch → Settings."); return; }
@@ -3138,12 +3111,12 @@ function ExportsModule() {
     setAiLoading(true);
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
+//method:"POST",
         headers:{ "Content-Type":"application/json", "x-api-key": key,
           "anthropic-version":"2023-06-01",
           "anthropic-dangerous-direct-browser-access":"true" },
         body: JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:700,
+//model:"claude-sonnet-4-20250514", max_tokens:700,
           messages:[{ role:"user", content:
 `Write a professional B2B introduction email from Kshirsagar Hometextiles, Solapur, India.
 We manufacture & export premium terry towels, bath mats, bed linen, home textiles — "Two Elephants" brand — since 1947.
@@ -3168,7 +3141,7 @@ First line MUST be exactly: Subject: [the subject line]`
     setAiLoading(false);
   };
 
-  /* ── Send emails ── */
+  /* -- Send emails -- */
   const sendEmails = async () => {
     const targets = importers.filter(x => selIds.includes(x.id) && x.email);
     if (!targets.length) { showN("No selected importers have email addresses."); return; }
@@ -3182,7 +3155,7 @@ First line MUST be exactly: Subject: [the subject line]`
           emails: targets.map(t => t.email), subject: emailSubject, body: emailBody }) });
       const now = new Date().toLocaleDateString("en-IN");
       targets.forEach(t => saveOverride(t.id, {
-        lastContacted: now,
+//lastContacted: now,
         status: (!t.status || t.status === "New") ? "Contacted" : t.status
       }));
       logActivity("✈️", `Export email → ${targets.length} importer${targets.length>1?"s":""}`, emailSubject, "exports");
@@ -3195,7 +3168,7 @@ First line MUST be exactly: Subject: [the subject line]`
   const sc = (status) => STATUS_COLOR[status||"New"] || STATUS_COLOR["New"];
   const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$${(n/1000).toFixed(0)}K` : `$${n}`;
 
-  /* ═══ RENDER ═══ */
+  /* === RENDER === */
   const tabList = [
     { id:"database", label:"🌍 Database" },
     { id:"compose",  label:"✉️ Compose & Send" },
@@ -3206,13 +3179,13 @@ First line MUST be exactly: Subject: [the subject line]`
       {notifMsg && (
         <div style={{ position:"fixed", top:16, right:16, background:"rgba(255,255,255,.96)",
           backdropFilter:"blur(20px)", color:"var(--label)", padding:"11px 18px", borderRadius:14,
-          fontSize:13, fontWeight:500, zIndex:99999,
+//fontSize:13, fontWeight:500, zIndex:99999,
           boxShadow:"0 8px 32px rgba(0,0,0,.12)", border:"0.5px solid rgba(0,0,0,.08)" }}>
           {notifMsg}
         </div>
       )}
 
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <div className="sh" style={{ marginBottom:16 }}>
         <div>
           <div className="st">✈️ Exports</div>
@@ -3237,7 +3210,7 @@ First line MUST be exactly: Subject: [the subject line]`
         </div>
       </div>
 
-      {/* ── Settings ── */}
+      {/* -- Settings -- */}
       {showSettings && (
         <div className="card" style={{ marginBottom:16, padding:16 }}>
           <div style={{ fontSize:13, fontWeight:700, color:"var(--label)", marginBottom:8 }}>⚙️ Exports Webhook</div>
@@ -3259,7 +3232,7 @@ First line MUST be exactly: Subject: [the subject line]`
         </div>
       )}
 
-      {/* ── Tabs ── */}
+      {/* -- Tabs -- */}
       <div style={{ display:"flex", gap:6, marginBottom:16, paddingBottom:12, borderBottom:"0.5px solid var(--sep)" }}>
         {tabList.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -3272,7 +3245,7 @@ First line MUST be exactly: Subject: [the subject line]`
         )}
       </div>
 
-      {/* ═══ DATABASE TAB ═══ */}
+      {/* === DATABASE TAB === */}
       {tab === "database" && (
         <div>
           {/* Stats */}
@@ -3302,7 +3275,7 @@ First line MUST be exactly: Subject: [the subject line]`
                 <>
                   <div style={{ fontSize:48, marginBottom:16 }}>✈️</div>
                   <div style={{ fontSize:17, fontWeight:700, color:"var(--label)", marginBottom:8 }}>
-                    Customs Export Database — Apr 2023
+//Customs Export Database — Apr 2023
                   </div>
                   <div style={{ fontSize:13, color:"var(--label2)", marginBottom:6, lineHeight:1.7 }}>
                     14,751 importers · 235 countries · HS 6302 &amp; 6304<br/>
@@ -3343,7 +3316,7 @@ First line MUST be exactly: Subject: [the subject line]`
               {/* Results bar */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                 <div style={{ fontSize:12, color:"var(--label3)" }}>
-                  Showing <strong style={{ color:"var(--label)" }}>{filtered.length.toLocaleString()}</strong> importers
+/* Showing <strong style={{ color:"var(--label)" }}>{filtered.length.toLocaleString()}</strong> importers */
                   {selIds.length > 0 && <> · <span style={{ color:"var(--blue)", fontWeight:600 }}>{selIds.length} selected</span></>}
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
@@ -3454,7 +3427,7 @@ First line MUST be exactly: Subject: [the subject line]`
                                 <div style={{ display:"flex", gap:4 }}>
                                   <button className="btn btn-gold btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
                                     onClick={() => { saveOverride(imp.id,{email:editDraft.email,contact:editDraft.contact,notes:editDraft.notes}); setEditingId(null); }}>
-                                    Save
+/* Save */
                                   </button>
                                   <button className="btn btn-out btn-sm" style={{ fontSize:10, padding:"3px 8px" }}
                                     onClick={() => setEditingId(null)}>✕</button>
@@ -3478,7 +3451,7 @@ First line MUST be exactly: Subject: [the subject line]`
                   <div style={{ padding:"10px 16px", borderTop:"0.5px solid var(--sep)",
                     display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div style={{ fontSize:11, color:"var(--label3)" }}>
-                      Page {page} of {totalPages} · {filtered.length.toLocaleString()} results
+/* Page {page} of {totalPages} · {filtered.length.toLocaleString()} results */
                     </div>
                     <div style={{ display:"flex", gap:6 }}>
                       <button className="btn btn-out btn-sm" disabled={page===1} onClick={() => setPage(1)} style={{ fontSize:11 }}>«</button>
@@ -3534,7 +3507,7 @@ First line MUST be exactly: Subject: [the subject line]`
         </div>
       )}
 
-      {/* ═══ COMPOSE TAB ═══ */}
+      {/* === COMPOSE TAB === */}
       {tab === "compose" && (
         <div style={{ display:"grid", gridTemplateColumns:"1fr 360px", gap:16 }}>
           {/* Composer */}
@@ -3545,7 +3518,7 @@ First line MUST be exactly: Subject: [the subject line]`
               <label className="lbl">To ({selIds.length} selected)</label>
               {selIds.length === 0 ? (
                 <div style={{ padding:"10px 14px", background:"var(--fill3)", borderRadius:8, fontSize:12, color:"var(--label3)" }}>
-                  Select importers from the panel → or go to Database, check rows, then return here.
+//Select importers from the panel → or go to Database, check rows, then return here.
                 </div>
               ) : (
                 <div style={{ padding:"8px 12px", background:"var(--fill3)", borderRadius:8,
@@ -3589,7 +3562,7 @@ First line MUST be exactly: Subject: [the subject line]`
             </div>
             {!webhookUrl && (
               <div style={{ marginTop:10, padding:"8px 12px", background:"var(--orange-l)", borderRadius:8, fontSize:11, color:"#A05A00" }}>
-                ⚠️ Webhook not configured — emails won't send. Add it in Settings.
+//⚠️ Webhook not configured — emails won't send. Add it in Settings.
               </div>
             )}
           </div>
@@ -3647,7 +3620,7 @@ First line MUST be exactly: Subject: [the subject line]`
 
 
 
-/* ── Error Boundary — prevents blank page on any render error ── */
+/* -- Error Boundary — prevents blank page on any render error -- */
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(e) { return { error: e }; }
@@ -3714,7 +3687,7 @@ export default function App() {
                          flexShrink:0, boxShadow:"0 2px 8px rgba(0,0,0,.15)" }} />
               <div>
                 <div style={{ fontSize:13, fontWeight:700, color:"var(--label)", letterSpacing:"-.02em", lineHeight:1.3 }}>
-                  Kshirsagar<br/>Hometextiles
+/* Kshirsagar<br/>Hometextiles */
                 </div>
                 <div style={{ fontSize:10, color:"var(--label3)", marginTop:2 }}>terrytowel.in · Est. 1947</div>
               </div>
